@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "world_dimension_nexus",
+  "version": "${version}",
+  "name": "World Dimension Nexus",
+  "description": "A serverside dimension and world management system.",
+  "authors": [
+    "Markus Bordihn"
+  ],
+  "contact": {
+    "homepage": "https://curseforge.com/minecraft/mc-mods/world_dimension_nexus",
+    "issues": "https://github.com/MarkusBordihn/World-Dimension-Nexus/issues"
+  },
+  "license": "MIT",
+  "icon": "logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "de.markusbordihn.worlddimensionnexus.WorldDimensionNexus"
+    ],
+    "client": [
+      "de.markusbordihn.worlddimensionnexus.WorldDimensionNexusClient"
+    ],
+    "fabric-gametest": [
+      "de.markusbordihn.worlddimensionnexus.gametest.SmokeTest"
+    ]
+  },
+  "mixins": [],
+  "accessWidener": "worlddimensionnexus.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.15",
+    "fabric": "*",
+    "minecraft": "1.21.1",
+    "java": ">=21"
+  },
+  "suggests": {
+    "tooltipfix": "*"
+  }
+}

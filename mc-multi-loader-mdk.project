@@ -1,0 +1,16 @@
+{
+  "config_version": "1.0.0",
+  "game_version": "1.21.1",
+  "author": "Markus Bordihn",
+  "mod_name": "World Dimension Nexus",
+  "license": "MIT",
+  "description": "A serverside dimension and world management system.",
+  "mod_id": "world_dimension_nexus",
+  "class_name": "WorldDimensionNexus",
+  "class_namespace": "de.markusbordihn.worlddimensionnexus",
+  "class_package_name": "worlddimensionnexus",
+  "vendor_name": "markusbordihn",
+  "display_url": "https://curseforge.com/minecraft/mc-mods/world_dimension_nexus",
+  "issue_tracker_url": "https://github.com/MarkusBordihn/World-Dimension-Nexus/issues",
+  "confirmed": true
+}

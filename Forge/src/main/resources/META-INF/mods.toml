@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[0,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/MarkusBordihn/World-Dimension-Nexus/issues"
+
+[[mods]]
+modId = "world_dimension_nexus"
+version = "${file.jarVersion}"
+displayName = "World Dimension Nexus"
+displayURL = "https://curseforge.com/minecraft/mc-mods/world_dimension_nexus"
+logoFile = "logo.png"
+credits = ""
+authors = "Markus Bordihn"
+description = '''A serverside dimension and world management system.'''
+
+[[dependencies.world_dimension_nexus]]
+modId = "forge"
+mandatory = true
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.world_dimension_nexus]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"

@@ -1,0 +1,22 @@
+plugins {
+  id 'net.neoforged.moddev' version '2.0.72'
+}
+
+archivesBaseName = "${mod_name}-common-${minecraft_version}"
+
+neoForge {
+  neoFormVersion = neo_form_version
+  accessTransformers.from(project.file("src/main/resources/META-INF/accesstransformer.common.cfg").absolutePath)
+}
+
+dependencies {
+  compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.7'
+}
+
+processResources {
+  def buildProps = project.properties.clone()
+
+  filesMatching(['pack.mcmeta']) {
+    expand buildProps
+  }
+}
