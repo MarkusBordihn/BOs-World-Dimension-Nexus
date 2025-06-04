@@ -22,10 +22,15 @@ package de.markusbordihn.worlddimensionnexus.block;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.color.ColoredGlassPane;
 import de.markusbordihn.worlddimensionnexus.data.color.WoolColor;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
+import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -87,6 +92,12 @@ public class PortalBlockManager {
             }
           });
     }
+  }
+
+  public static boolean isRelevantPortalBlock(Block block, BlockState blockState) {
+    boolean isCorner = block == CORNER_BLOCK_MATERIAL;
+    Optional<DyeColor> woolColorOpt = WoolColor.get(blockState);
+    return isCorner || woolColorOpt.isPresent();
   }
 
   private static void checkPotentialPortalFromCorner(
@@ -220,13 +231,25 @@ public class PortalBlockManager {
           NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
         }
 
-        // Inform the portal manager about the new portal.
-        log.info(
-            "Registering portal at {} with color {}, inner blocks: {}, axis: {}",
-            blockPos,
-            frameColor,
-            innerAreaPositions.size(),
-            portalAxis);
+        // Create and register the portal information.
+        PortalInfoData portalInfo =
+            new PortalInfoData(
+                serverLevel.dimension(),
+                blockPos.immutable(),
+                new HashSet<>(
+                    getFrameBlockPositions(
+                        blockPos,
+                        currentVertical,
+                        currentHorizontal,
+                        verticalFrameLength,
+                        horizontalFrameLength)),
+                new HashSet<>(innerAreaPositions),
+                Set.of(blockPos, secondCorner, thirdCorner, fourthCorner),
+                serverPlayer != null ? serverPlayer.getUUID() : UUID.randomUUID(),
+                frameColor,
+                serverLevel.getBlockState(blockPos).getBlock(),
+                System.currentTimeMillis());
+        PortalManager.addPortal(portalInfo);
         return;
       }
     }
@@ -303,5 +326,28 @@ public class PortalBlockManager {
     }
 
     return innerBlockPositions;
+  }
+
+  private static List<BlockPos> getFrameBlockPositions(
+      BlockPos corner,
+      Direction vertical,
+      Direction horizontal,
+      int verticalLength,
+      int horizontalLength) {
+    List<BlockPos> frameBlocks = new ArrayList<>();
+
+    // Vertical Sides
+    for (int i = 0; i <= verticalLength + 1; i++) {
+      frameBlocks.add(corner.relative(vertical, i));
+      frameBlocks.add(corner.relative(horizontal, horizontalLength + 1).relative(vertical, i));
+    }
+
+    // Horizontal Sides
+    for (int i = 1; i <= horizontalLength; i++) {
+      frameBlocks.add(corner.relative(horizontal, i));
+      frameBlocks.add(corner.relative(vertical, verticalLength + 1).relative(horizontal, i));
+    }
+
+    return frameBlocks;
   }
 }

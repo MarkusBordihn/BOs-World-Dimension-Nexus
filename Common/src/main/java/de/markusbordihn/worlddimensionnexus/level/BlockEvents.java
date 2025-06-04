@@ -20,9 +20,10 @@
 package de.markusbordihn.worlddimensionnexus.level;
 
 import de.markusbordihn.worlddimensionnexus.block.PortalBlockManager;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
+import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
@@ -43,16 +44,22 @@ public class BlockEvents {
 
     // Server-side created dimension are not always synced with the client, so we need to
     // send a block update to the client to ensure the client has the correct block state.
-    serverLevel
-        .getServer()
-        .tell(
-            new TickTask(
-                serverLevel.getServer().getTickCount() + 1,
-                () -> {
-                  // ToDo: Send update to all players in the dimension / radius.
-                  NetworkHandler.sendBlockUpdatePacket(
-                      serverPlayer, blockPos, serverLevel.getBlockState(blockPos));
-                }));
+    NetworkHandler.sendDelayedBlockUpdatePacket(serverLevel, serverPlayer, blockPos);
+
+    // Check for potential portals blocks.
+    if (PortalBlockManager.isRelevantPortalBlock(block, blockState)) {
+      PortalInfoData portalInfo = PortalManager.getPortalFrame(serverLevel, blockPos);
+      if (portalInfo != null) {
+
+        // Remove inner portal blocks.
+        for (BlockPos innerBlock : portalInfo.innerBlocks()) {
+          serverLevel.removeBlock(innerBlock, true);
+          NetworkHandler.sendDelayedBlockUpdatePacket(serverLevel, serverPlayer, innerBlock);
+        }
+
+        PortalManager.removePortal(portalInfo);
+      }
+    }
   }
 
   public static void handleBlockPlace(

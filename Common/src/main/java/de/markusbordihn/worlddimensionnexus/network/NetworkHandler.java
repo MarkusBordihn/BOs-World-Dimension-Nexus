@@ -21,10 +21,23 @@ package de.markusbordihn.worlddimensionnexus.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class NetworkHandler {
+
+  public static void sendDelayedBlockUpdatePacket(
+      ServerLevel serverLevel, ServerPlayer serverPlayer, BlockPos blockPos) {
+    serverLevel
+        .getServer()
+        .tell(
+            new net.minecraft.server.TickTask(
+                serverLevel.getServer().getTickCount() + 1,
+                () ->
+                    sendBlockUpdatePacket(
+                        serverPlayer, blockPos, serverLevel.getBlockState(blockPos))));
+  }
 
   public static void sendBlockUpdatePacket(
       ServerPlayer serverPlayer, BlockPos blockPos, BlockState blockState) {

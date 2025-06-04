@@ -20,7 +20,10 @@
 package de.markusbordihn.worlddimensionnexus.server;
 
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
+import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,11 +31,17 @@ public class ServerEvents {
 
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
 
-  public static void handleServerStartedEvent(MinecraftServer minecraftServer) {
-    log.info("Server started ...");
+  public static void handleServerStartingEvent(final MinecraftServer minecraftServer) {
+    log.info("Server starting {} ...", minecraftServer);
+
+    // Register Portal Data Storage for the Overworld.
+    PortalDataStorage.init(minecraftServer.getLevel(Level.OVERWORLD));
   }
 
-  public static void handleServerStartingEvent(MinecraftServer minecraftServer) {
-    log.info("Server starting ...");
+  public static void handleServerStartedEvent(final MinecraftServer minecraftServer) {
+    log.info("Server started {} ...", minecraftServer);
+
+    // Synchronize Portal Data Storage to Portal Manager.
+    PortalManager.sync(PortalDataStorage.get().getPortals());
   }
 }

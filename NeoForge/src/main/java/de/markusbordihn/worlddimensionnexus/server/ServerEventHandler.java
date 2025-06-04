@@ -20,8 +20,10 @@
 package de.markusbordihn.worlddimensionnexus.server;
 
 import de.markusbordihn.worlddimensionnexus.commands.CreateDimensionCommand;
+import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
 @EventBusSubscriber
@@ -31,7 +33,16 @@ public class ServerEventHandler {
 
   @SubscribeEvent
   public static void onServerStarting(ServerStartingEvent event) {
-    ServerEvents.handleServerStartingEvent(event.getServer());
-    CreateDimensionCommand.register(event.getServer().getCommands().getDispatcher());
+    if (event.getServer() instanceof MinecraftServer minecraftServer) {
+      ServerEvents.handleServerStartingEvent(minecraftServer);
+      CreateDimensionCommand.register(minecraftServer.getCommands().getDispatcher());
+    }
+  }
+
+  @SubscribeEvent
+  public static void onServerStarted(ServerStartedEvent event) {
+    if (event.getServer() instanceof MinecraftServer minecraftServer) {
+      ServerEvents.handleServerStartedEvent(minecraftServer);
+    }
   }
 }
