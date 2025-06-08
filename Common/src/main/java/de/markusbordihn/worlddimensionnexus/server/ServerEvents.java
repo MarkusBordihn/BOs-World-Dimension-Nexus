@@ -21,6 +21,7 @@ package de.markusbordihn.worlddimensionnexus.server;
 
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
+import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
@@ -43,5 +44,6 @@ public class ServerEvents {
 
     // Synchronize Portal Data Storage to Portal Manager.
     PortalManager.sync(PortalDataStorage.get().getPortals());
+    PortalTargetManager.sync(PortalDataStorage.get().getTargets());
   }
 }

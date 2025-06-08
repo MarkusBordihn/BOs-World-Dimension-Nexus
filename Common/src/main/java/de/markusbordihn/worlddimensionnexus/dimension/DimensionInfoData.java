@@ -17,30 +17,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.server;
+package de.markusbordihn.worlddimensionnexus.dimension;
 
-import net.minecraft.server.MinecraftServer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-
-@EventBusSubscriber
-public class ServerEventHandler {
-
-  private ServerEventHandler() {}
-
-  @SubscribeEvent
-  public static void onServerStarting(ServerStartingEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartingEvent(minecraftServer);
-    }
-  }
-
-  @SubscribeEvent
-  public static void onServerStarted(ServerStartedEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartedEvent(minecraftServer);
-    }
-  }
-}
+public record DimensionInfoData() {}

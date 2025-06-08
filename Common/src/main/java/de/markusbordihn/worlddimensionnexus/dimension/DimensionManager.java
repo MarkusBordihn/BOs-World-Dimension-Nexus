@@ -19,12 +19,21 @@
 
 package de.markusbordihn.worlddimensionnexus.dimension;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderSet;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -43,12 +52,16 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructureSets;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.storage.ServerLevelData;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class DimensionManager {
 
-  private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Manager");
+
+  public static List<ResourceKey<Level>> getDimensions(MinecraftServer server) {
+    return server.levelKeys().stream()
+        .filter(levelKey -> !levelKey.equals(Level.OVERWORLD))
+        .toList();
+  }
 
   public static ServerLevel createFlatDimension(MinecraftServer server, String dimensionName) {
     ResourceKey<Level> levelKey =
@@ -119,5 +132,30 @@ public class DimensionManager {
     settings.updateLayers();
 
     return settings;
+  }
+
+  public static DimensionType loadDimensionType(Path path, RegistryAccess registryAccess)
+      throws Exception {
+    String json = Files.readString(path);
+    JsonElement element = JsonParser.parseString(json);
+    RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
+    var result = DimensionType.DIRECT_CODEC.parse(ops, element);
+    if (result.result().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Fehler beim Parsen von DimensionType: " + result.error().get().message());
+    }
+    return result.result().get();
+  }
+
+  public static LevelStem loadLevelStem(Path path, RegistryAccess registryAccess) throws Exception {
+    String json = Files.readString(path);
+    JsonElement element = JsonParser.parseString(json);
+    RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
+    var result = LevelStem.CODEC.parse(ops, element);
+    if (result.result().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Fehler beim Parsen von LevelStem: " + result.error().get().message());
+    }
+    return result.result().get();
   }
 }

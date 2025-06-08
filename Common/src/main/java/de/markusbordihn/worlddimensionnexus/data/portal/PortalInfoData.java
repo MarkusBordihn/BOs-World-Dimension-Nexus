@@ -37,6 +37,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
 public record PortalInfoData(
+    UUID uuid,
     ResourceKey<Level> dimension,
     BlockPos origin,
     Set<BlockPos> frameBlocks,
@@ -56,16 +57,16 @@ public record PortalInfoData(
                 : DataResult.error(() -> "Expected 3 ints for BlockPos");
           },
           pos -> Arrays.stream(new int[] {pos.getX(), pos.getY(), pos.getZ()}));
-
   public static final Codec<Set<BlockPos>> BLOCK_POS_SET_CODEC =
       BLOCK_POS_CODEC.listOf().xmap(HashSet::new, ArrayList::new);
   public static final Codec<ResourceKey<Level>> LEVEL_KEY_CODEC =
-      ResourceKey.codec(Registries.DIMENSION);
+      net.minecraft.resources.ResourceKey.codec(Registries.DIMENSION);
   public static final Codec<PortalInfoData> CODEC =
       RecordCodecBuilder.create(
           instance ->
               instance
                   .group(
+                      UUIDUtil.CODEC.fieldOf("uuid").forGetter(PortalInfoData::uuid),
                       LEVEL_KEY_CODEC.fieldOf("dimension").forGetter(PortalInfoData::dimension),
                       BLOCK_POS_CODEC.fieldOf("origin").forGetter(PortalInfoData::origin),
                       BLOCK_POS_SET_CODEC
@@ -88,8 +89,31 @@ public record PortalInfoData(
                           .forGetter(PortalInfoData::lastUsed))
                   .apply(instance, PortalInfoData::new));
 
+  public PortalInfoData(
+      final ResourceKey<Level> dimension,
+      final BlockPos origin,
+      final Set<BlockPos> frameBlocks,
+      final Set<BlockPos> innerBlocks,
+      final Set<BlockPos> cornerBlocks,
+      final UUID creator,
+      final DyeColor color,
+      final Block edgeBlockType) {
+    this(
+        UUID.randomUUID(),
+        dimension,
+        origin,
+        frameBlocks,
+        innerBlocks,
+        cornerBlocks,
+        creator,
+        color,
+        edgeBlockType,
+        System.currentTimeMillis());
+  }
+
   public PortalInfoData withUpdatedLastUsed() {
     return new PortalInfoData(
+        this.uuid,
         this.dimension,
         this.origin,
         this.frameBlocks,
@@ -109,5 +133,54 @@ public record PortalInfoData(
     return !this.equals(other)
         && this.color == other.color
         && this.edgeBlockType == other.edgeBlockType;
+  }
+
+  public BlockPos getTeleportPosition() {
+
+    // Use inner blocks to calculate the teleport position.
+    if (this.innerBlocks != null && !this.innerBlocks.isEmpty()) {
+      BlockPos middle =
+          this.innerBlocks.stream()
+              .reduce(
+                  BlockPos.ZERO,
+                  (a, b) ->
+                      new BlockPos(a.getX() + b.getX(), a.getY() + b.getY(), a.getZ() + b.getZ()));
+      return new BlockPos(
+          middle.getX() / this.innerBlocks.size(),
+          middle.getY() / this.innerBlocks.size(),
+          middle.getZ() / this.innerBlocks.size());
+    }
+
+    return this.origin != null ? this.origin.above() : BlockPos.ZERO;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    return object instanceof PortalInfoData other && this.uuid.equals(other.uuid);
+  }
+
+  @Override
+  public int hashCode() {
+    return uuid.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return "PortalInfoData{"
+        + "uuid="
+        + uuid
+        + ", dimension="
+        + dimension
+        + ", origin="
+        + origin
+        + ", creator="
+        + creator
+        + ", color="
+        + color
+        + ", edgeBlockType="
+        + edgeBlockType
+        + ", lastUsed="
+        + lastUsed
+        + '}';
   }
 }

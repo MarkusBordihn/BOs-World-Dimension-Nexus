@@ -19,9 +19,10 @@
 
 package de.markusbordihn.worlddimensionnexus.portal;
 
-import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +32,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class PortalManager {
 
-  private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
-
-  private static final String LOG_PREFIX = "[Portal Manager]";
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Manager");
 
   private static final Map<ResourceKey<Level>, List<PortalInfoData>> portalsPerDimension =
       new ConcurrentHashMap<>();
@@ -50,12 +47,13 @@ public class PortalManager {
 
   public static void sync(List<PortalInfoData> portalList) {
     if (portalList == null || portalList.isEmpty()) {
-      log.error("{} Portal list is null or empty!", LOG_PREFIX);
+      log.warn("Portal list is null or empty!");
       return;
     }
 
-    log.info("{} Synchronizing {} portals ...", LOG_PREFIX, portalList.size());
+    log.info("Synchronizing {} portals ...", portalList.size());
     clear();
+
     for (PortalInfoData portalInfo : portalList) {
       addPortal(portalInfo, false);
     }
@@ -71,7 +69,7 @@ public class PortalManager {
     }
 
     // Add portal to the global portal set and dimension-specific list for fast access.
-    log.info("{} Adding portal: {}", LOG_PREFIX, portalInfo);
+    log.info("Adding portal: {}", portalInfo);
     portals.add(portalInfo);
     portalsPerDimension
         .computeIfAbsent(portalInfo.dimension(), k -> new java.util.ArrayList<>())
@@ -90,6 +88,10 @@ public class PortalManager {
     // Add portal to the persistent storage.
     if (updateStorage) {
       PortalDataStorage.get().addPortal(portalInfo);
+
+      // Automatically link the portal if it has a target.
+      PortalTargetManager.autoLinkPortal(
+          portalInfo, getPortals(portalInfo.dimension()), getPortals());
     }
   }
 
@@ -98,8 +100,9 @@ public class PortalManager {
       return;
     }
 
+    log.info("Removing portal: {}", portalInfo);
+
     // Remove portal from the global portal set and dimension-specific list.
-    log.info("{} Removing portal: {}", LOG_PREFIX, portalInfo);
     portals.remove(portalInfo);
     List<PortalInfoData> dimensionPortals = portalsPerDimension.get(portalInfo.dimension());
     if (dimensionPortals != null) {
@@ -134,13 +137,20 @@ public class PortalManager {
 
     // Remove portal from the persistent storage.
     PortalDataStorage.get().removePortal(portalInfo);
+
+    // Remove portal from the target manager.
+    PortalTargetManager.removeTarget(portalInfo);
   }
 
   public static Set<PortalInfoData> getPortals() {
     return portals;
   }
 
-  public static PortalInfoData getPortalFrame(Level level, BlockPos blockPos) {
+  public static List<PortalInfoData> getPortals(ResourceKey<Level> dimension) {
+    return portalsPerDimension.get(dimension);
+  }
+
+  public static PortalInfoData getPortal(Level level, BlockPos blockPos) {
     if (level == null || blockPos == null) {
       return null;
     }
@@ -169,6 +179,7 @@ public class PortalManager {
   public static void clear() {
     portals.clear();
     portalsPerDimension.clear();
+    portalsPerChunk.clear();
   }
 
   private static long getChunkKey(final BlockPos blockPos) {

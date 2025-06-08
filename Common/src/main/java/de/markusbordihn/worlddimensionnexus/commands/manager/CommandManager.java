@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Markus Bordihn
+ * Copyright 2023 Markus Bordihn
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -17,35 +17,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus;
+package de.markusbordihn.worlddimensionnexus.commands.manager;
 
-import cpw.mods.modlauncher.Launcher;
-import cpw.mods.modlauncher.api.IEnvironment;
-import de.markusbordihn.worlddimensionnexus.debug.DebugManager;
-import java.util.Optional;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.loading.FMLEnvironment;
+import com.mojang.brigadier.CommandDispatcher;
+import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.server.commands.DebugCommand;
+import de.markusbordihn.worlddimensionnexus.server.commands.DimensionCommand;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@SuppressWarnings("unused")
-@Mod(Constants.MOD_ID)
-public class WorldDimensionNexus {
+public class CommandManager {
 
-  private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
+  protected static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
 
-  @SuppressWarnings({"java:S1118", "java:S2440"})
-  public WorldDimensionNexus(IEventBus modEventBus) {
+  private CommandManager() {}
+
+  public static void registerCommands(
+      CommandDispatcher<CommandSourceStack> commandDispatcher, CommandBuildContext context) {
     log.info(
-        "Initializing {} (NeoForge-Common) {} ...", Constants.MOD_NAME, FMLEnvironment.dist.name());
-
-    log.info("{} Debug Manager ...", Constants.LOG_REGISTER_PREFIX);
-    Optional<String> version =
-        Launcher.INSTANCE.environment().getProperty(IEnvironment.Keys.VERSION.get());
-    if (version.isPresent() && "MOD_DEV".equals(version.get())) {
-      DebugManager.setDevelopmentEnvironment(true);
-    }
-    DebugManager.checkForDebugLogging(Constants.LOG_NAME);
+        "{} /{} commands for {} ...",
+        Constants.LOG_REGISTER_PREFIX,
+        Constants.MOD_COMMAND,
+        Constants.MOD_NAME);
+    commandDispatcher.register(
+        Commands.literal(Constants.MOD_COMMAND).then(DebugCommand.register()));
+    commandDispatcher.register(
+        Commands.literal(Constants.MOD_COMMAND_DIMENSION).then(DimensionCommand.register()));
   }
 }

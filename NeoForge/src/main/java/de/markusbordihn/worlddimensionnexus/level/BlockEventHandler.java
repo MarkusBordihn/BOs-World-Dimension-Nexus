@@ -54,9 +54,10 @@ public class BlockEventHandler {
     }
     if (event.getLevel() instanceof ServerLevel serverLevel
         && event.getPlayer() instanceof ServerPlayer serverPlayer
-        && event.getPos() instanceof BlockPos blockPos) {
-      BlockEvents.handleBlockBreak(
-          serverLevel, blockPos, serverPlayer, event.getState().getBlock(), event.getState());
+        && event.getPos() instanceof BlockPos blockPos
+        && !BlockEvents.handleBlockBreak(
+            serverLevel, blockPos, serverPlayer, event.getState().getBlock(), event.getState())) {
+      event.setCanceled(true);
     }
   }
 }

@@ -19,12 +19,13 @@
 
 package de.markusbordihn.worlddimensionnexus.block;
 
-import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.color.ColoredGlassPane;
 import de.markusbordihn.worlddimensionnexus.data.color.WoolColor;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -44,12 +45,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class PortalBlockManager {
 
-  private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Block Manager");
 
   private static final Block CORNER_BLOCK_MATERIAL = Blocks.DIAMOND_BLOCK;
   private static final int PORTAL_INNER_WIDTH = 2;
@@ -95,9 +94,109 @@ public class PortalBlockManager {
   }
 
   public static boolean isRelevantPortalBlock(Block block, BlockState blockState) {
-    boolean isCorner = block == CORNER_BLOCK_MATERIAL;
-    Optional<DyeColor> woolColorOpt = WoolColor.get(blockState);
-    return isCorner || woolColorOpt.isPresent();
+    return isRelevantPortalFrameBlock(block, blockState)
+        || isRelevantInnerPortalBlock(block, blockState);
+  }
+
+  public static boolean isRelevantPortalFrameBlock(Block block, BlockState blockState) {
+    return block == CORNER_BLOCK_MATERIAL || WoolColor.get(blockState).isPresent();
+  }
+
+  public static boolean isRelevantInnerPortalBlock(Block block, BlockState blockState) {
+    return block instanceof IronBarsBlock;
+  }
+
+  public static void createPortal(
+      ServerLevel serverLevel,
+      ServerPlayer serverPlayer,
+      PortalInfoData portalInfo,
+      Direction.Axis portalAxis,
+      Direction currentHorizontal) {
+    if (serverLevel == null
+        || portalInfo == null
+        || portalAxis == null
+        || currentHorizontal == null) {
+      log.error("Unable to create portal, missing parameter!");
+      return;
+    }
+
+    // Play portal spawn sound at the origin position.
+    serverLevel.playSound(
+        null, portalInfo.origin(), SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+    // Glass pane extending Iron Bars Blocks, for this reason we are checking for them
+    // instead of stained-glass panes or glass panes.
+    Block glassBlock = ColoredGlassPane.get(portalInfo.color());
+    BlockState glassState = glassBlock.defaultBlockState();
+    if (glassBlock instanceof IronBarsBlock ironBarsBlock) {
+      if (portalAxis == Direction.Axis.Y) {
+        glassState =
+            ironBarsBlock
+                .defaultBlockState()
+                .setValue(CrossCollisionBlock.NORTH, true)
+                .setValue(CrossCollisionBlock.SOUTH, true)
+                .setValue(CrossCollisionBlock.EAST, true)
+                .setValue(CrossCollisionBlock.WEST, true);
+      } else {
+        Direction.Axis connectAxis = currentHorizontal.getAxis();
+        glassState =
+            ironBarsBlock
+                .defaultBlockState()
+                .setValue(CrossCollisionBlock.NORTH, connectAxis == Direction.Axis.Z)
+                .setValue(CrossCollisionBlock.SOUTH, connectAxis == Direction.Axis.Z)
+                .setValue(CrossCollisionBlock.EAST, connectAxis == Direction.Axis.X)
+                .setValue(CrossCollisionBlock.WEST, connectAxis == Direction.Axis.X);
+      }
+    }
+
+    // Set the inner area blocks to glass panes and send block update packets.
+    for (BlockPos pos : portalInfo.innerBlocks()) {
+      serverLevel.setBlock(pos, glassState, 3);
+      NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
+    }
+
+    // 3. Optionale: Partikeleffekte oder Animationen (hier als Hook)
+    // spawnPortalParticles(level, portalInfo.origin());
+
+    // Send a message to the player who created the portal.
+    if (serverPlayer != null) {
+      serverPlayer.sendSystemMessage(
+          Component.literal("Portal (" + portalInfo.color().getName() + ") created!"));
+    }
+
+    // Register the portal in the PortalManager.
+    PortalManager.addPortal(portalInfo);
+  }
+
+  public static void destroyPortal(
+      ServerLevel level, ServerPlayer player, PortalInfoData portalInfo) {
+    if (level == null || portalInfo == null) {
+      return;
+    }
+
+    // Play portal destruction sound at the origin position.
+    level.playSound(
+        null, portalInfo.origin(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 0.7F, 1.2F);
+    level.playSound(
+        null, portalInfo.origin(), SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 0.5F, 1.25F);
+
+    // Remove the inner portal blocks and send block update packets.
+    for (BlockPos innerBlock : portalInfo.innerBlocks()) {
+      level.removeBlock(innerBlock, true);
+      if (player != null) {
+        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, innerBlock);
+      }
+    }
+
+    // 3. Optional: Animationen/Partikel (Hook)
+    // spawnPortalDestructionParticles(level, portalInfo.origin());
+
+    // Send a message to the player who destroyed the portal.
+    if (player != null) {
+      player.sendSystemMessage(Component.literal("Portal destroyed!"));
+    }
+
+    PortalManager.removePortal(portalInfo);
   }
 
   private static void checkPotentialPortalFromCorner(
@@ -191,47 +290,7 @@ public class PortalBlockManager {
           continue;
         }
 
-        // We have a valid portal frame with a color and clear inner area.
-        DyeColor frameColor = optionalFrameColor.get();
-        if (serverPlayer != null) {
-          serverPlayer.sendSystemMessage(
-              Component.literal("Portal (" + frameColor.getName() + ") detected!"));
-        }
-        serverLevel.playSound(
-            null, blockPos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0F, 1.0F);
-
-        // Glass pane extending Iron Bars Blocks, for this reason we are checking for them
-        // instead of stained-glass panes or glass panes.
-        Block glassBlock = ColoredGlassPane.get(frameColor);
-        BlockState glassState = glassBlock.defaultBlockState();
-        if (glassBlock instanceof IronBarsBlock ironBarsBlock) {
-          if (portalAxis == Direction.Axis.Y) {
-            glassState =
-                ironBarsBlock
-                    .defaultBlockState()
-                    .setValue(CrossCollisionBlock.NORTH, true)
-                    .setValue(CrossCollisionBlock.SOUTH, true)
-                    .setValue(CrossCollisionBlock.EAST, true)
-                    .setValue(CrossCollisionBlock.WEST, true);
-          } else {
-            Direction.Axis connectAxis = currentHorizontal.getAxis();
-            glassState =
-                ironBarsBlock
-                    .defaultBlockState()
-                    .setValue(CrossCollisionBlock.NORTH, connectAxis == Direction.Axis.Z)
-                    .setValue(CrossCollisionBlock.SOUTH, connectAxis == Direction.Axis.Z)
-                    .setValue(CrossCollisionBlock.EAST, connectAxis == Direction.Axis.X)
-                    .setValue(CrossCollisionBlock.WEST, connectAxis == Direction.Axis.X);
-          }
-        }
-
-        // Set the inner area blocks to glass panes and send block update packets.
-        for (BlockPos pos : innerAreaPositions) {
-          serverLevel.setBlock(pos, glassState, 3);
-          NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
-        }
-
-        // Create and register the portal information.
+        // Create portal information to create the portal.
         PortalInfoData portalInfo =
             new PortalInfoData(
                 serverLevel.dimension(),
@@ -246,10 +305,11 @@ public class PortalBlockManager {
                 new HashSet<>(innerAreaPositions),
                 Set.of(blockPos, secondCorner, thirdCorner, fourthCorner),
                 serverPlayer != null ? serverPlayer.getUUID() : UUID.randomUUID(),
-                frameColor,
-                serverLevel.getBlockState(blockPos).getBlock(),
-                System.currentTimeMillis());
-        PortalManager.addPortal(portalInfo);
+                optionalFrameColor.get(),
+                serverLevel.getBlockState(blockPos).getBlock());
+
+        // Create the portal with the portal information.
+        createPortal(serverLevel, serverPlayer, portalInfo, portalAxis, currentHorizontal);
         return;
       }
     }

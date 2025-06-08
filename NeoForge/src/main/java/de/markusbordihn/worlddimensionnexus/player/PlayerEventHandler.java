@@ -17,30 +17,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.server;
+package de.markusbordihn.worlddimensionnexus.player;
 
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber
-public class ServerEventHandler {
-
-  private ServerEventHandler() {}
+public class PlayerEventHandler {
 
   @SubscribeEvent
-  public static void onServerStarting(ServerStartingEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartingEvent(minecraftServer);
-    }
-  }
-
-  @SubscribeEvent
-  public static void onServerStarted(ServerStartedEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartedEvent(minecraftServer);
+  public static void onPlayerTick(PlayerTickEvent.Post event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerPostTickEvent(serverPlayer);
     }
   }
 }

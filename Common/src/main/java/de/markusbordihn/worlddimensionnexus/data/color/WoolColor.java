@@ -25,7 +25,6 @@ import java.util.Optional;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.WoolCarpetBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class WoolColor {
@@ -52,10 +51,10 @@ public class WoolColor {
   }
 
   public static Optional<DyeColor> get(BlockState blockState) {
-    Block block = blockState.getBlock();
-    if (block instanceof WoolCarpetBlock) {
-      return Optional.empty();
-    }
+    return get(blockState.getBlock());
+  }
+
+  public static Optional<DyeColor> get(Block block) {
     return Optional.ofNullable(WOOL_BLOCK_COLOR_MAP.get(block));
   }
 }

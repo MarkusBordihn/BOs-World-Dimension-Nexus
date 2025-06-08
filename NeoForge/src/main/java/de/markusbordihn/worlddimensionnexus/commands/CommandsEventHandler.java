@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Markus Bordihn
+ * Copyright 2023 Markus Bordihn
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -17,30 +17,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.server;
+package de.markusbordihn.worlddimensionnexus.commands;
 
-import net.minecraft.server.MinecraftServer;
+import de.markusbordihn.worlddimensionnexus.commands.manager.CommandManager;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 @EventBusSubscriber
-public class ServerEventHandler {
+public class CommandsEventHandler {
 
-  private ServerEventHandler() {}
-
-  @SubscribeEvent
-  public static void onServerStarting(ServerStartingEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartingEvent(minecraftServer);
-    }
-  }
+  protected CommandsEventHandler() {}
 
   @SubscribeEvent
-  public static void onServerStarted(ServerStartedEvent event) {
-    if (event.getServer() instanceof MinecraftServer minecraftServer) {
-      ServerEvents.handleServerStartedEvent(minecraftServer);
-    }
+  public static void handleRegisterCommandsEvent(RegisterCommandsEvent event) {
+    CommandManager.registerCommands(event.getDispatcher(), event.getBuildContext());
   }
 }

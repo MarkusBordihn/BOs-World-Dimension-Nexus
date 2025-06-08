@@ -31,35 +31,37 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class BlockEvents {
 
-  public static void handleBlockBreak(
+  public static boolean handleBlockBreak(
       ServerLevel serverLevel,
       BlockPos blockPos,
       ServerPlayer serverPlayer,
       Block block,
       BlockState blockState) {
+
     // Ignore air blocks.
     if (blockState.isAir()) {
-      return;
+      return true;
+    }
+
+    // Check if block is an inner portal block and deny breaking of inner portal blocks.
+    if (PortalBlockManager.isRelevantInnerPortalBlock(block, blockState)
+        && PortalManager.getPortal(serverLevel, blockPos) != null) {
+      return false;
+    }
+
+    // Check for potential portals blocks and destroy the portal if it is relevant.
+    if (PortalBlockManager.isRelevantPortalFrameBlock(block, blockState)) {
+      PortalInfoData portalInfo = PortalManager.getPortal(serverLevel, blockPos);
+      if (portalInfo != null) {
+        PortalBlockManager.destroyPortal(serverLevel, serverPlayer, portalInfo);
+      }
     }
 
     // Server-side created dimension are not always synced with the client, so we need to
-    // send a block update to the client to ensure the client has the correct block state.
+    // send a forced block update to the client to ensure the client has the correct block state.
     NetworkHandler.sendDelayedBlockUpdatePacket(serverLevel, serverPlayer, blockPos);
 
-    // Check for potential portals blocks.
-    if (PortalBlockManager.isRelevantPortalBlock(block, blockState)) {
-      PortalInfoData portalInfo = PortalManager.getPortalFrame(serverLevel, blockPos);
-      if (portalInfo != null) {
-
-        // Remove inner portal blocks.
-        for (BlockPos innerBlock : portalInfo.innerBlocks()) {
-          serverLevel.removeBlock(innerBlock, true);
-          NetworkHandler.sendDelayedBlockUpdatePacket(serverLevel, serverPlayer, innerBlock);
-        }
-
-        PortalManager.removePortal(portalInfo);
-      }
-    }
+    return true;
   }
 
   public static void handleBlockPlace(
@@ -68,7 +70,11 @@ public class BlockEvents {
       ServerPlayer serverPlayer,
       Block block,
       BlockState blockState) {
-    PortalBlockManager.checkForPotentialPortals(
-        serverLevel, blockPos, serverPlayer, block, blockState);
+
+    // Check for potential portals blocks and create a new portal if it is relevant.
+    if (PortalBlockManager.isRelevantPortalFrameBlock(block, blockState)) {
+      PortalBlockManager.checkForPotentialPortals(
+          serverLevel, blockPos, serverPlayer, block, blockState);
+    }
   }
 }

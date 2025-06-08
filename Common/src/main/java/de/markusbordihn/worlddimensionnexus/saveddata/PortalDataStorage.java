@@ -19,9 +19,9 @@
 
 package de.markusbordihn.worlddimensionnexus.saveddata;
 
-import com.mojang.serialization.Codec;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalTargetData;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.HolderLookup.Provider;
@@ -36,16 +36,19 @@ import org.apache.logging.log4j.Logger;
 public class PortalDataStorage extends SavedData {
 
   public static final String DATA_NAME = "world_dimension_nexus_portals";
-  public static final Codec<PortalDataStorage> CODEC =
-      PortalInfoData.CODEC.listOf().xmap(PortalDataStorage::new, PortalDataStorage::getPortals);
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
   private static final String LOG_PREFIX = "[PortalDataStorage]";
   private static final String PORTAL_TAG = "Portals";
+  private static final String TARGETS = "Targets";
+
   private static PortalDataStorage instance;
   private final List<PortalInfoData> portals;
+  private final List<PortalTargetData> targets;
 
-  public PortalDataStorage(final List<PortalInfoData> portals) {
+  public PortalDataStorage(
+      final List<PortalInfoData> portals, final List<PortalTargetData> targets) {
     this.portals = portals;
+    this.targets = targets;
   }
 
   public static void init(final ServerLevel level) {
@@ -68,7 +71,7 @@ public class PortalDataStorage extends SavedData {
 
   public static SavedData.Factory<PortalDataStorage> factory() {
     return new SavedData.Factory<>(
-        () -> new PortalDataStorage(new ArrayList<>()),
+        () -> new PortalDataStorage(new ArrayList<>(), new ArrayList<>()),
         PortalDataStorage::load,
         DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
   }
@@ -78,14 +81,25 @@ public class PortalDataStorage extends SavedData {
   }
 
   public static PortalDataStorage load(final CompoundTag compoundTag, final Provider provider) {
+    // Decode portal data
     List<PortalInfoData> portals =
         PortalInfoData.CODEC
             .listOf()
             .parse(NbtOps.INSTANCE, compoundTag.get(PORTAL_TAG))
-            .resultOrPartial(error -> log.error("{} Failed to decode data: {}", LOG_PREFIX, error))
+            .resultOrPartial(
+                error -> log.error("{} Failed to decode portal data: {}", LOG_PREFIX, error))
             .orElseGet(ArrayList::new);
 
-    return new PortalDataStorage(new ArrayList<>(portals));
+    // Decode portal targets
+    List<PortalTargetData> portalTargets =
+        PortalTargetData.CODEC
+            .listOf()
+            .parse(NbtOps.INSTANCE, compoundTag.get(TARGETS))
+            .resultOrPartial(
+                error -> log.error("{} Failed to decode portal targets: {}", LOG_PREFIX, error))
+            .orElseGet(ArrayList::new);
+
+    return new PortalDataStorage(new ArrayList<>(portals), new ArrayList<>(portalTargets));
   }
 
   public List<PortalInfoData> getPortals() {
@@ -102,12 +116,38 @@ public class PortalDataStorage extends SavedData {
     setDirty();
   }
 
+  public List<PortalTargetData> getTargets() {
+    return this.targets;
+  }
+
+  public void addTarget(final PortalTargetData target) {
+    this.targets.add(target);
+    setDirty();
+  }
+
+  public void removeTarget(final PortalTargetData target) {
+    this.targets.remove(target);
+    setDirty();
+  }
+
   @Override
   public CompoundTag save(final CompoundTag compoundTag, final Provider provider) {
-    CODEC
-        .encodeStart(NbtOps.INSTANCE, this)
-        .resultOrPartial(error -> log.error("{} Failed to encode data: {}", LOG_PREFIX, error))
+    // Encode portal data
+    PortalInfoData.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, this.portals)
+        .resultOrPartial(
+            error -> log.error("{} Failed to encode portal data: {}", LOG_PREFIX, error))
         .ifPresent(tag -> compoundTag.put(PORTAL_TAG, tag));
+
+    // Encode portal targets
+    PortalTargetData.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, this.targets)
+        .resultOrPartial(
+            error -> log.error("{} Failed to encode portal targets: {}", LOG_PREFIX, error))
+        .ifPresent(tag -> compoundTag.put(TARGETS, tag));
+
     return compoundTag;
   }
 }
