@@ -22,6 +22,8 @@ package de.markusbordihn.worlddimensionnexus.saveddata;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalTargetData;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.HolderLookup.Provider;
@@ -30,14 +32,11 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class PortalDataStorage extends SavedData {
 
-  public static final String DATA_NAME = "world_dimension_nexus_portals";
-  private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
-  private static final String LOG_PREFIX = "[PortalDataStorage]";
+  public static final String DATA_NAME = Constants.MOD_ID + "_portals";
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("[Portal Data Storage]");
   private static final String PORTAL_TAG = "Portals";
   private static final String TARGETS = "Targets";
 
@@ -47,18 +46,22 @@ public class PortalDataStorage extends SavedData {
 
   public PortalDataStorage(
       final List<PortalInfoData> portals, final List<PortalTargetData> targets) {
+    log.info(
+        "Creating new PortalDataStorage with {} portals and {} targets ...",
+        portals.size(),
+        targets.size());
     this.portals = portals;
     this.targets = targets;
   }
 
-  public static void init(final ServerLevel level) {
+  public static void init(final ServerLevel serverLevel) {
     if (instance == null) {
-      if (level == null) {
-        log.error("{} Cannot initialize without a valid level!", LOG_PREFIX);
+      if (serverLevel == null) {
+        log.error("Cannot initialize without a valid level!");
         return;
       }
-      log.info("{} Initializing with level: {}", LOG_PREFIX, level);
-      instance = PortalDataStorage.get(level);
+      log.info("Initializing with level: {}", serverLevel);
+      instance = PortalDataStorage.get(serverLevel);
     }
   }
 
@@ -69,15 +72,15 @@ public class PortalDataStorage extends SavedData {
     return instance;
   }
 
+  public static PortalDataStorage get(final ServerLevel level) {
+    return level.getDataStorage().computeIfAbsent(factory(), DATA_NAME);
+  }
+
   public static SavedData.Factory<PortalDataStorage> factory() {
     return new SavedData.Factory<>(
         () -> new PortalDataStorage(new ArrayList<>(), new ArrayList<>()),
         PortalDataStorage::load,
         DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
-  }
-
-  public static PortalDataStorage get(final ServerLevel level) {
-    return level.getDataStorage().computeIfAbsent(factory(), DATA_NAME);
   }
 
   public static PortalDataStorage load(final CompoundTag compoundTag, final Provider provider) {
@@ -86,8 +89,7 @@ public class PortalDataStorage extends SavedData {
         PortalInfoData.CODEC
             .listOf()
             .parse(NbtOps.INSTANCE, compoundTag.get(PORTAL_TAG))
-            .resultOrPartial(
-                error -> log.error("{} Failed to decode portal data: {}", LOG_PREFIX, error))
+            .resultOrPartial(error -> log.error("Failed to decode portal data: {}", error))
             .orElseGet(ArrayList::new);
 
     // Decode portal targets
@@ -95,8 +97,7 @@ public class PortalDataStorage extends SavedData {
         PortalTargetData.CODEC
             .listOf()
             .parse(NbtOps.INSTANCE, compoundTag.get(TARGETS))
-            .resultOrPartial(
-                error -> log.error("{} Failed to decode portal targets: {}", LOG_PREFIX, error))
+            .resultOrPartial(error -> log.error("Failed to decode portal targets: {}", error))
             .orElseGet(ArrayList::new);
 
     return new PortalDataStorage(new ArrayList<>(portals), new ArrayList<>(portalTargets));
@@ -108,12 +109,12 @@ public class PortalDataStorage extends SavedData {
 
   public void addPortal(final PortalInfoData portal) {
     this.portals.add(portal);
-    setDirty();
+    this.setDirty();
   }
 
   public void removePortal(final PortalInfoData portal) {
     this.portals.remove(portal);
-    setDirty();
+    this.setDirty();
   }
 
   public List<PortalTargetData> getTargets() {
@@ -122,12 +123,12 @@ public class PortalDataStorage extends SavedData {
 
   public void addTarget(final PortalTargetData target) {
     this.targets.add(target);
-    setDirty();
+    this.setDirty();
   }
 
   public void removeTarget(final PortalTargetData target) {
     this.targets.remove(target);
-    setDirty();
+    this.setDirty();
   }
 
   @Override
@@ -136,16 +137,14 @@ public class PortalDataStorage extends SavedData {
     PortalInfoData.CODEC
         .listOf()
         .encodeStart(NbtOps.INSTANCE, this.portals)
-        .resultOrPartial(
-            error -> log.error("{} Failed to encode portal data: {}", LOG_PREFIX, error))
+        .resultOrPartial(error -> log.error("Failed to encode portal data: {}", error))
         .ifPresent(tag -> compoundTag.put(PORTAL_TAG, tag));
 
     // Encode portal targets
     PortalTargetData.CODEC
         .listOf()
         .encodeStart(NbtOps.INSTANCE, this.targets)
-        .resultOrPartial(
-            error -> log.error("{} Failed to encode portal targets: {}", LOG_PREFIX, error))
+        .resultOrPartial(error -> log.error("Failed to encode portal targets: {}", error))
         .ifPresent(tag -> compoundTag.put(TARGETS, tag));
 
     return compoundTag;

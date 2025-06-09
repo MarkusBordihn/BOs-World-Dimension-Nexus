@@ -57,16 +57,16 @@ dependencies {
   testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.7.1'
 
   // Additional helpful Mods for development (runtime dependency)
-  if (project.hasProperty('neoforge_jei_mod') && project.neoforge_jei_mod) {
+  if (project.hasProperty('neoforge_jei_mod') && project.neoforge_jei_mod && false) {
     compileOnly "curse.maven:jei-238222:${project.neoforge_jei_mod}"
     runtimeOnly "curse.maven:jei-238222:${project.neoforge_jei_mod}"
   }
 
-  if (project.hasProperty('neoforge_spark_mod') && project.neoforge_spark_mod) {
+  if (project.hasProperty('neoforge_spark_mod') && project.neoforge_spark_mod && false) {
     runtimeOnly "curse.maven:spark-361579:${project.neoforge_spark_mod}"
   }
 
-  if (project.hasProperty('neoforge_xaeros_minimap_mod') && project.neoforge_xaeros_minimap_mod) {
+  if (project.hasProperty('neoforge_xaeros_minimap_mod') && project.neoforge_xaeros_minimap_mod && false) {
     compileOnly "curse.maven:xaeros_minimap-263420:${project.neoforge_xaeros_minimap_mod}"
     runtimeOnly "curse.maven:xaeros_minimap-263420:${project.neoforge_xaeros_minimap_mod}"
   }

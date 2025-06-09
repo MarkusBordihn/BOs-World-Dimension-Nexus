@@ -17,6 +17,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.dimension;
+package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
-public record DimensionInfoData() {}
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
+
+public class DimensionSuggestions {
+
+  public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
+      (context, builder) ->
+          SharedSuggestionProvider.suggest(
+              DimensionManager.getDimensionNames(context.getSource().getServer()), builder);
+}

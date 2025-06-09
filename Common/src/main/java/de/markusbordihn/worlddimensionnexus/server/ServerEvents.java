@@ -20,10 +20,13 @@
 package de.markusbordihn.worlddimensionnexus.server;
 
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
+import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,8 +38,20 @@ public class ServerEvents {
   public static void handleServerStartingEvent(final MinecraftServer minecraftServer) {
     log.info("Server starting {} ...", minecraftServer);
 
-    // Register Portal Data Storage for the Overworld.
-    PortalDataStorage.init(minecraftServer.getLevel(Level.OVERWORLD));
+    ServerLevel overworld = minecraftServer.getLevel(Level.OVERWORLD);
+    if (overworld == null) {
+      log.error("Overworld not found, unable to register global data storage!");
+      return;
+    }
+
+    // Register global Dimension Data Storage on the Overworld.
+    DimensionDataStorage.init(overworld);
+
+    // Register global Portal Data Storage on the Overworld.
+    PortalDataStorage.init(overworld);
+
+    // Synchronize Dimension Data Storage to Dimension Manager and register all dimensions.
+    DimensionManager.sync(minecraftServer, DimensionDataStorage.get().getDimensions());
   }
 
   public static void handleServerStartedEvent(final MinecraftServer minecraftServer) {

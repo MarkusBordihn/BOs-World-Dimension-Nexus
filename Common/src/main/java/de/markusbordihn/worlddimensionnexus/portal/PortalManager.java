@@ -47,13 +47,14 @@ public class PortalManager {
 
   public static void sync(List<PortalInfoData> portalList) {
     if (portalList == null || portalList.isEmpty()) {
-      log.warn("Portal list is null or empty!");
+      log.warn("No portals to synchronize: list is {}.", (portalList == null ? "null" : "empty"));
       return;
     }
 
     log.info("Synchronizing {} portals ...", portalList.size());
     clear();
 
+    // Add portals, but without updating the persistent storage.
     for (PortalInfoData portalInfo : portalList) {
       addPortal(portalInfo, false);
     }
@@ -169,7 +170,9 @@ public class PortalManager {
 
     // Check if the block position is part of any portal frame or corner blocks.
     for (PortalInfoData portal : portalsInChunk) {
-      if (portal.frameBlocks().contains(blockPos) || portal.cornerBlocks().contains(blockPos)) {
+      if (portal.frameBlocks().contains(blockPos)
+          || portal.cornerBlocks().contains(blockPos)
+          || portal.innerBlocks().contains(blockPos)) {
         return portal;
       }
     }
@@ -177,6 +180,7 @@ public class PortalManager {
   }
 
   public static void clear() {
+    log.debug("Clearing all portals ...");
     portals.clear();
     portalsPerDimension.clear();
     portalsPerChunk.clear();

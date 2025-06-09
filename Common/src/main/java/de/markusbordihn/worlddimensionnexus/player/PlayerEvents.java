@@ -36,7 +36,7 @@ public class PlayerEvents {
     if (PortalBlockManager.isRelevantInnerPortalBlock(block, blockState)) {
       PortalInfoData portalInfo = PortalManager.getPortal(serverLevel, serverPlayer.getOnPos());
       if (portalInfo != null) {
-        PortalTargetManager.teleportPlayer(serverLevel, serverPlayer, portalInfo);
+        PortalTargetManager.teleportPlayerWithDelay(serverLevel, serverPlayer, portalInfo);
       }
     }
   }
