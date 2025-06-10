@@ -17,17 +17,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
+package de.markusbordihn.worlddimensionnexus.dimension.io;
 
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.SharedSuggestionProvider;
+import java.nio.file.Path;
 
-public class DimensionSuggestions {
+public class DimensionIOUtils {
 
-  public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
-      (context, builder) ->
-          SharedSuggestionProvider.suggest(
-              DimensionManager.getDimensionNames(context.getSource().getServer()), builder);
+  public static boolean shouldSkipFile(Path relativePath) {
+    String relName = relativePath.toString().replace("\\", "/").toLowerCase();
+
+    // Skip known files and directories that should not be imported into the dimension folder.
+    return relName.equals("dimension.info")
+        || relName.equals("dimension.json")
+        || relName.equals("session.lock")
+        || relName.equals("icon.png")
+        || relName.equals("level.dat_old")
+        || relName.startsWith("playerdata/")
+        || relName.startsWith("advancements/")
+        || relName.startsWith("stats/")
+        || relName.startsWith("poi/")
+        || relName.startsWith(".")
+        || relName.endsWith(".bak")
+        || relName.endsWith(".tmp")
+        || relName.endsWith(".swp");
+  }
 }

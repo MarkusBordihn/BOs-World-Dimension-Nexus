@@ -183,6 +183,15 @@ public class DimensionManager {
         .toList();
   }
 
+  public static DimensionInfoData getDimensionInfo(ResourceKey<Level> levelKey) {
+    for (DimensionInfoData dimensionInfo : dimensions) {
+      if (dimensionInfo.name().equals(levelKey)) {
+        return dimensionInfo;
+      }
+    }
+    return null;
+  }
+
   public static Collection<String> getDimensionNames(MinecraftServer server) {
     return dimensions.stream()
         .map(dimensionInfo -> dimensionInfo.name().location())

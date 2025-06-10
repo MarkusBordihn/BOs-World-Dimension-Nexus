@@ -17,25 +17,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus;
+package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 
-public final class Constants {
+public class DimensionSuggestion {
 
-  public static final String MOD_ID = "world_dimension_nexus";
-  public static final String MOD_NAME = "World Dimension Nexus";
-  public static final String MOD_COMMAND = MOD_ID;
-  public static final String MOD_COMMAND_DIMENSION = "world_dimension";
-  public static final String MOD_COMMAND_PORTAL = "dimension_portal";
-  public static final String MOD_PREFIX = MOD_ID + ".";
-  public static final String LOG_NAME = MOD_NAME;
-  public static final String LOG_REGISTER_PREFIX = "Register " + MOD_NAME;
-  public static final String EXPORT_FILE_EXTENSION = ".wdn";
+  public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
+      (context, builder) ->
+          SharedSuggestionProvider.suggest(
+              DimensionManager.getDimensionNames(context.getSource().getServer()), builder);
 
-  public static Path GAME_DIR = Paths.get("").toAbsolutePath();
-  public static Path CONFIG_DIR = GAME_DIR.resolve("config");
-
-  private Constants() {}
+  public static final SuggestionProvider<CommandSourceStack> ALL_DIMENSIONS =
+      (context, builder) -> {
+        MinecraftServer server = context.getSource().getServer();
+        for (ServerLevel level : server.getAllLevels()) {
+          builder.suggest(level.dimension().location().toString());
+        }
+        return builder.buildFuture();
+      };
 }

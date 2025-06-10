@@ -25,12 +25,21 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
-import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestions;
+import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionExporter;
+import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionImporter;
+import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
+import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionImportFileSuggestion;
+import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
+import java.io.File;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -58,7 +67,7 @@ public class DimensionCommand extends Command {
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
                 .then(
                     Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestions.DIMENSION_NAMES)
+                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
                         .executes(
                             context ->
                                 removeDimension(
@@ -69,7 +78,7 @@ public class DimensionCommand extends Command {
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
                 .then(
                     Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestions.DIMENSION_NAMES)
+                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
                         .executes(
                             context ->
                                 infoDimension(
@@ -80,7 +89,7 @@ public class DimensionCommand extends Command {
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
                 .then(
                     Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestions.DIMENSION_NAMES)
+                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
                         .executes(
                             context ->
                                 teleportToDimension(
@@ -95,11 +104,57 @@ public class DimensionCommand extends Command {
                                             StringArgumentType.getString(context, "name"),
                                             EntityArgument.getPlayer(context, "player"))))))
         .then(
+            Commands.literal("export")
+                .requires(source -> source.hasPermission(Commands.LEVEL_OWNERS))
+                .then(
+                    Commands.argument("dimension", DimensionArgument.dimension())
+                        .suggests(DimensionSuggestion.ALL_DIMENSIONS)
+                        .executes(
+                            context ->
+                                exportDimension(
+                                    context.getSource(),
+                                    DimensionArgument.getDimension(context, "dimension")
+                                        .dimension()))))
+        .then(
+            Commands.literal("import")
+                .then(
+                    Commands.argument("file", StringArgumentType.string())
+                        .suggests(DimensionImportFileSuggestion::suggestImportFiles)
+                        .executes(
+                            context ->
+                                importDimension(
+                                    context.getSource(),
+                                    null,
+                                    null,
+                                    StringArgumentType.getString(context, "file")))
+                        .then(
+                            Commands.argument("dimension", ResourceLocationArgument.id())
+                                .executes(
+                                    context ->
+                                        importDimension(
+                                            context.getSource(),
+                                            ResourceLocationArgument.getId(context, "dimension"),
+                                            null,
+                                            StringArgumentType.getString(context, "file")))
+                                .then(
+                                    Commands.argument(
+                                            "dimension_type", ResourceLocationArgument.id())
+                                        .executes(
+                                            context ->
+                                                importDimension(
+                                                    context.getSource(),
+                                                    ResourceLocationArgument.getId(
+                                                        context, "dimension"),
+                                                    ResourceLocationArgument.getId(
+                                                        context, "dimension_type"),
+                                                    StringArgumentType.getString(
+                                                        context, "file")))))))
+        .then(
             Commands.literal("autoteleport")
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
                 .then(
                     Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestions.DIMENSION_NAMES)
+                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
                         .executes(
                             context ->
                                 setAutoTeleport(
@@ -169,6 +224,50 @@ public class DimensionCommand extends Command {
     ServerPlayer player = source.getPlayerOrException();
     // AutoTeleportManager.setAutoTeleport(player.getUUID(), name);
     return sendSuccessMessage(source, "Auto-teleport on join set to '" + name + "'.");
+  }
+
+  private static int exportDimension(CommandSourceStack source, ResourceKey<Level> dimension) {
+    MinecraftServer server = source.getServer();
+    if (dimension == null) {
+      return sendFailureMessage(
+          source, "Dimension '" + dimension + "' konnte nicht gefunden werden.");
+    }
+
+    // Set export file name and path
+    String fileName =
+        dimension.location().getNamespace() + "_" + dimension.location().getPath() + ".wdn";
+    File exportFile = new File(server.getServerDirectory().toFile(), fileName);
+
+    // Export the dimension
+    if (DimensionExporter.exportDimension(server, dimension, exportFile)) {
+      return sendSuccessMessage(source, "Export erfolgreich: " + exportFile.getAbsolutePath());
+    } else {
+      return sendFailureMessage(source, "Fehler beim Export der Dimension!");
+    }
+  }
+
+  private static int importDimension(
+      CommandSourceStack source,
+      ResourceLocation dimensionId,
+      ResourceLocation dimensionTypeId,
+      String fileName) {
+    MinecraftServer server = source.getServer();
+    File importFile = WorldDataPackResourceManager.getDataPackFile(server, fileName);
+    if (importFile == null || !importFile.exists() || !importFile.isFile()) {
+      return sendFailureMessage(source, "Import file not found: " + fileName);
+    }
+
+    try {
+      boolean success =
+          DimensionImporter.importDimension(server, importFile, dimensionId, dimensionTypeId);
+      if (success) {
+        return sendSuccessMessage(source, "Imported dimension from " + fileName);
+      } else {
+        return sendFailureMessage(source, "Import failed for " + fileName);
+      }
+    } catch (Exception e) {
+      return sendFailureMessage(source, "Error importing: " + e);
+    }
   }
 
   public static int clearAutoTeleport(CommandSourceStack source) throws CommandSyntaxException {

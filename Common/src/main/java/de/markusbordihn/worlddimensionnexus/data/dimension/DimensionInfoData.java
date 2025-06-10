@@ -73,7 +73,8 @@ public record DimensionInfoData(
   }
 
   public Holder<DimensionType> getDimensionTypeHolder(MinecraftServer server) {
-    return server.registryAccess()
+    return server
+        .registryAccess()
         .registryOrThrow(Registries.DIMENSION_TYPE)
         .getHolderOrThrow(this.type);
   }

@@ -69,11 +69,6 @@ public class DimensionDataStorage extends SavedData {
     return level.getDataStorage().computeIfAbsent(factory(), DATA_NAME);
   }
 
-  public void addDimension(final DimensionInfoData dimensionInfoData) {
-    this.dimensionList.add(dimensionInfoData);
-    this.setDirty();
-  }
-
   public static SavedData.Factory<DimensionDataStorage> factory() {
     return new SavedData.Factory<>(
         () -> new DimensionDataStorage(new ArrayList<>()),
@@ -90,6 +85,11 @@ public class DimensionDataStorage extends SavedData {
             .orElseGet(ArrayList::new);
 
     return new DimensionDataStorage(new ArrayList<>(dimensions));
+  }
+
+  public void addDimension(final DimensionInfoData dimensionInfoData) {
+    this.dimensionList.add(dimensionInfoData);
+    this.setDirty();
   }
 
   public List<DimensionInfoData> getDimensions() {

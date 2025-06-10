@@ -23,6 +23,7 @@ import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
+import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import net.minecraft.server.MinecraftServer;
@@ -60,5 +61,8 @@ public class ServerEvents {
     // Synchronize Portal Data Storage to Portal Manager.
     PortalManager.sync(PortalDataStorage.get().getPortals());
     PortalTargetManager.sync(PortalDataStorage.get().getTargets());
+
+    // Copy example dimension files to world folder.
+    WorldDataPackResourceManager.copyDimensionFilesToWorld(minecraftServer);
   }
 }
