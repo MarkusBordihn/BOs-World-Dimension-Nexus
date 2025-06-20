@@ -51,16 +51,16 @@ public class DimensionImporter {
       throws IOException {
     Path tempDir = Files.createTempDirectory("import_dimension");
 
-    try (ZipInputStream zis = new ZipInputStream(new FileInputStream(importFile))) {
+    try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(importFile))) {
       ZipEntry entry;
-      while ((entry = zis.getNextEntry()) != null) {
+      while ((entry = zipInputStream.getNextEntry()) != null) {
         Path filePath = tempDir.resolve(entry.getName());
         if (entry.isDirectory()) {
           Files.createDirectories(filePath);
         } else {
           Files.createDirectories(filePath.getParent());
           try (OutputStream os = Files.newOutputStream(filePath)) {
-            zis.transferTo(os);
+            zipInputStream.transferTo(os);
           }
         }
       }

@@ -26,9 +26,7 @@ public final class Constants {
 
   public static final String MOD_ID = "world_dimension_nexus";
   public static final String MOD_NAME = "World Dimension Nexus";
-  public static final String MOD_COMMAND = MOD_ID;
-  public static final String MOD_COMMAND_DIMENSION = "world_dimension";
-  public static final String MOD_COMMAND_PORTAL = "dimension_portal";
+  public static final String MOD_COMMAND = "wdn";
   public static final String MOD_PREFIX = MOD_ID + ".";
   public static final String LOG_NAME = MOD_NAME;
   public static final String LOG_REGISTER_PREFIX = "Register " + MOD_NAME;

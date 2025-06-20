@@ -165,6 +165,12 @@ public class PortalTargetManager {
     UUID playerId = serverPlayer.getUUID();
     long currentTick = serverLevel.getGameTime();
 
+    // Validate the portal target information.
+    PortalTargetData portalTarget = getTarget(portalInfo);
+    if (portalTarget == null) {
+      return;
+    }
+
     // Check if the player is still standing on the portal.
     Long lastTick = pendingTeleportTime.get(playerId);
     if (lastTick != null && currentTick - lastTick > 1) {

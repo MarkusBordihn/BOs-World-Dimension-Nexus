@@ -10,7 +10,7 @@ enter the name of the new dimension and will create a new folder in the server's
 Example:
 
 ```
-/world_dimension dimension create my_new_dimension
+/wdn dimension create my_new_dimension
 ```
 
 ### Teleporting Between Dimensions
@@ -26,7 +26,7 @@ Example:
 
 ## List Dimensions
 
-To list all available dimensions, you can use the `/world_dimension dimension list` command.
+To list all available dimensions, you can use the `/wdn dimension list` command.
 This will display a list of all dimensions currently managed by the World Dimension Nexus mod.
 
 ## Portal Blocks

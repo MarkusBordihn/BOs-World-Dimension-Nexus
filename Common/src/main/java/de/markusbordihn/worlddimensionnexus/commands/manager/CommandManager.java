@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Markus Bordihn
+ * Copyright 2025 Markus Bordihn
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -23,6 +23,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.server.commands.DebugCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.DimensionCommand;
+import de.markusbordihn.worlddimensionnexus.server.commands.PortalCommand;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -43,8 +44,9 @@ public class CommandManager {
         Constants.MOD_COMMAND,
         Constants.MOD_NAME);
     commandDispatcher.register(
-        Commands.literal(Constants.MOD_COMMAND).then(DebugCommand.register()));
-    commandDispatcher.register(
-        Commands.literal(Constants.MOD_COMMAND_DIMENSION).then(DimensionCommand.register()));
+        Commands.literal(Constants.MOD_COMMAND)
+            .then(DebugCommand.register())
+            .then(DimensionCommand.register())
+            .then(PortalCommand.register()));
   }
 }
