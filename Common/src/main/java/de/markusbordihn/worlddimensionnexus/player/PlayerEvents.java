@@ -13,13 +13,11 @@ import net.minecraft.world.level.block.state.BlockState;
 public class PlayerEvents {
 
   public static void handlePlayerPostTickEvent(ServerPlayer serverPlayer) {
-    // Check block state for performance reasons.
     BlockState blockState = serverPlayer.getInBlockState();
     if (blockState.isAir()) {
       return;
     }
 
-    // Check block itself for performance reasons.
     Block block = blockState.getBlock();
     if (block == Blocks.WATER
         || block == Blocks.LAVA
@@ -31,7 +29,6 @@ public class PlayerEvents {
       return;
     }
 
-    // Last check make sure the block is a relevant inner portal block.
     ServerLevel serverLevel = serverPlayer.serverLevel();
     if (PortalBlockManager.isRelevantInnerPortalBlock(block, blockState)) {
       PortalInfoData portalInfo = PortalManager.getPortal(serverLevel, serverPlayer.getOnPos());

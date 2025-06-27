@@ -35,5 +35,8 @@ public class WorldDimensionNexus implements ModInitializer {
     log.info("{} Constants ...", Constants.LOG_REGISTER_PREFIX);
     Constants.GAME_DIR = FabricLoader.getInstance().getGameDir();
     Constants.CONFIG_DIR = FabricLoader.getInstance().getConfigDir();
+
+    log.info("{} Configuration ...", Constants.LOG_REGISTER_PREFIX);
+    Config.register(FMLEnvironment.dist == Dist.DEDICATED_SERVER);
   }
 }

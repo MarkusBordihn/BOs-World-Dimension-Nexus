@@ -28,8 +28,15 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
+/**
+ * Immutable data structure for portal target destinations.
+ *
+ * <p>Links a source portal to its target location (dimension and position). Used for teleportation
+ * between different points in the world.
+ */
 public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, BlockPos position) {
 
+  /** Codec for serializing and deserializing PortalTargetData objects. */
   public static final Codec<PortalTargetData> CODEC =
       RecordCodecBuilder.create(
           instance ->
@@ -44,6 +51,11 @@ public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, Bloc
                           .forGetter(PortalTargetData::position))
                   .apply(instance, PortalTargetData::new));
 
+  /**
+   * Creates a new portal target in the overworld at position (0,0,0).
+   *
+   * @param portalId The UUID of the source portal
+   */
   public PortalTargetData(UUID portalId) {
     this(
         portalId,
@@ -51,6 +63,12 @@ public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, Bloc
         BlockPos.ZERO);
   }
 
+  /**
+   * Checks if the portal target data is empty and not linked to any valid portal, dimension, or
+   * position.
+   *
+   * @return true if the portal target data is empty, false otherwise
+   */
   public boolean isEmpty() {
     return this.portalId == null
         || this.dimension == null

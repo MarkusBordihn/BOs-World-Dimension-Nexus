@@ -21,11 +21,14 @@ package de.markusbordihn.worlddimensionnexus;
 
 import cpw.mods.modlauncher.Launcher;
 import cpw.mods.modlauncher.api.IEnvironment;
+import de.markusbordihn.worlddimensionnexus.config.Config;
 import de.markusbordihn.worlddimensionnexus.debug.DebugManager;
 import java.util.Optional;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLPaths;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,5 +50,12 @@ public class WorldDimensionNexus {
       DebugManager.setDevelopmentEnvironment(true);
     }
     DebugManager.checkForDebugLogging(Constants.LOG_NAME);
+
+    log.info("{} Constants ...", Constants.LOG_REGISTER_PREFIX);
+    Constants.GAME_DIR = FMLPaths.GAMEDIR.get();
+    Constants.CONFIG_DIR = FMLPaths.CONFIGDIR.get();
+
+    log.info("{} Configuration ...", Constants.LOG_REGISTER_PREFIX);
+    Config.register(FMLEnvironment.dist == Dist.DEDICATED_SERVER);
   }
 }

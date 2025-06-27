@@ -229,20 +229,17 @@ public class DimensionCommand extends Command {
   private static int exportDimension(CommandSourceStack source, ResourceKey<Level> dimension) {
     MinecraftServer server = source.getServer();
     if (dimension == null) {
-      return sendFailureMessage(
-          source, "Dimension '" + dimension + "' konnte nicht gefunden werden.");
+      return sendFailureMessage(source, "Dimension '" + dimension + "' could not be found.");
     }
 
-    // Set export file name and path
     String fileName =
         dimension.location().getNamespace() + "_" + dimension.location().getPath() + ".wdn";
     File exportFile = new File(server.getServerDirectory().toFile(), fileName);
 
-    // Export the dimension
     if (DimensionExporter.exportDimension(server, dimension, exportFile)) {
-      return sendSuccessMessage(source, "Export erfolgreich: " + exportFile.getAbsolutePath());
+      return sendSuccessMessage(source, "Export successful: " + exportFile.getAbsolutePath());
     } else {
-      return sendFailureMessage(source, "Fehler beim Export der Dimension!");
+      return sendFailureMessage(source, "Error exporting the dimension!");
     }
   }
 

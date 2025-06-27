@@ -41,7 +41,6 @@ public class WorldDataPackResourceManager {
       };
 
   public static void copyDimensionFilesToWorld(MinecraftServer server) {
-    // Create target directory for dimension files in the world datapack directory.
     Path targetPath = getDimensionDataPackPath(server);
     if (!Files.exists(targetPath)) {
       log.info("Creating target directory for dimension files: {}", targetPath);
@@ -53,7 +52,6 @@ public class WorldDataPackResourceManager {
       }
     }
 
-    // Copy dimension files from resources to the world datapack directory.
     for (String resourcePath : worldDimensionFiles) {
       String fileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
       Path fileTarget = targetPath.resolve(fileName);

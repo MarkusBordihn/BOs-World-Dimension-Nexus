@@ -20,6 +20,7 @@
 package de.markusbordihn.worlddimensionnexus.portal;
 
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalTargetData;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -45,7 +47,7 @@ public class PortalManager {
 
   private PortalManager() {}
 
-  public static void sync(List<PortalInfoData> portalList) {
+  public static void sync(final List<PortalInfoData> portalList) {
     if (portalList == null || portalList.isEmpty()) {
       log.warn("No portals to synchronize: list is {}.", (portalList == null ? "null" : "empty"));
       return;
@@ -60,11 +62,11 @@ public class PortalManager {
     }
   }
 
-  public static void addPortal(PortalInfoData portalInfo) {
+  public static void addPortal(final PortalInfoData portalInfo) {
     addPortal(portalInfo, true);
   }
 
-  public static void addPortal(PortalInfoData portalInfo, boolean updateStorage) {
+  public static void addPortal(final PortalInfoData portalInfo, final boolean updateStorage) {
     if (portalInfo == null) {
       return;
     }
@@ -96,12 +98,34 @@ public class PortalManager {
     }
   }
 
-  public static void removePortal(PortalInfoData portalInfo) {
+  public static void removePortal(final PortalInfoData portalInfo) {
     if (portalInfo == null || !portals.contains(portalInfo)) {
       return;
     }
 
     log.info("Removing portal: {}", portalInfo);
+
+    // Find any portals linked to this one and remove their targets
+    UUID portalUUID = portalInfo.uuid();
+    for (PortalInfoData otherPortal : portals) {
+      // Skip the portal being removed
+      if (otherPortal.equals(portalInfo)) {
+        continue;
+      }
+
+      // Check if this other portal links to the portal being removed
+      PortalTargetData targetData = PortalTargetManager.getTarget(otherPortal);
+      if (targetData != null) {
+        // If this portal links to the one being removed, remove the link
+        if (isTargetingPortal(targetData, portalInfo)) {
+          log.info(
+              "Removing link from portal {} to the removed portal {}",
+              otherPortal.uuid(),
+              portalUUID);
+          PortalTargetManager.removeTarget(otherPortal);
+        }
+      }
+    }
 
     // Remove portal from the global portal set and dimension-specific list.
     portals.remove(portalInfo);
@@ -147,11 +171,20 @@ public class PortalManager {
     return portals;
   }
 
-  public static List<PortalInfoData> getPortals(ResourceKey<Level> dimension) {
-    return portalsPerDimension.get(dimension);
+  /**
+   * Gets all portals in the specified dimension.
+   *
+   * @param dimension The dimension key
+   * @return List of portals in that dimension (empty list if none found)
+   */
+  public static List<PortalInfoData> getPortals(final ResourceKey<Level> dimension) {
+    if (dimension == null) {
+      return new ArrayList<>();
+    }
+    return portalsPerDimension.getOrDefault(dimension, new ArrayList<>());
   }
 
-  public static PortalInfoData getPortal(Level level, BlockPos blockPos) {
+  public static PortalInfoData getPortal(final Level level, final BlockPos blockPos) {
     if (level == null || blockPos == null) {
       return null;
     }
@@ -191,5 +224,42 @@ public class PortalManager {
       return 0L;
     }
     return new ChunkPos(blockPos).toLong();
+  }
+
+  /**
+   * Checks if a portal target is pointing to the given portal.
+   *
+   * @param targetData The target data to check
+   * @param portal The portal to check if being targeted
+   * @return true if the target points to the given portal
+   */
+  private static boolean isTargetingPortal(
+      final PortalTargetData targetData, final PortalInfoData portal) {
+    if (targetData == null || portal == null) {
+      return false;
+    }
+
+    // Check if the target's dimension matches the portal's dimension
+    if (!targetData.dimension().equals(portal.dimension())) {
+      return false;
+    }
+
+    // Check if the target's position is within the portal's area
+    BlockPos targetPos = targetData.position();
+
+    // Check frame blocks
+    for (BlockPos frameBlock : portal.frameBlocks()) {
+      if (frameBlock.getX() == targetPos.getX()
+          && frameBlock.getY() == targetPos.getY()
+          && frameBlock.getZ() == targetPos.getZ()) {
+        return true;
+      }
+    }
+
+    // Also check the portal's teleport position specifically
+    BlockPos portalPos = portal.getTeleportPosition();
+    return portalPos.getX() == targetPos.getX()
+        && portalPos.getY() == targetPos.getY()
+        && portalPos.getZ() == targetPos.getZ();
   }
 }

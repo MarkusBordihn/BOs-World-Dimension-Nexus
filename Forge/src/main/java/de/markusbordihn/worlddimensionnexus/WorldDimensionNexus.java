@@ -44,7 +44,9 @@ public class WorldDimensionNexus {
     Constants.GAME_DIR = FMLPaths.GAMEDIR.get();
     Constants.CONFIG_DIR = FMLPaths.CONFIGDIR.get();
 
-    // Initialize the client mod initializer
+    log.info("{} Configuration ...", Constants.LOG_REGISTER_PREFIX);
+    Config.register(FMLEnvironment.dist == Dist.DEDICATED_SERVER);
+
     DistExecutor.unsafeRunWhenOn(
         Dist.CLIENT, () -> () -> new WorldDimensionNexusClient(modEventBus));
   }

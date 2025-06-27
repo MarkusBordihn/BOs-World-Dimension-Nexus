@@ -36,6 +36,12 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
+/**
+ * Immutable data structure representing a portal in the world.
+ *
+ * <p>Contains all necessary information to identify, locate, and manage a portal,
+ * including its position, dimensions, appearance, and metadata.
+ */
 public record PortalInfoData(
     UUID uuid,
     ResourceKey<Level> dimension,
@@ -48,6 +54,7 @@ public record PortalInfoData(
     Block edgeBlockType,
     long lastUsed) {
 
+  /** Codec for serializing and deserializing BlockPos objects. */
   public static final Codec<BlockPos> BLOCK_POS_CODEC =
       Codec.INT_STREAM.comapFlatMap(
           stream -> {
@@ -57,10 +64,13 @@ public record PortalInfoData(
                 : DataResult.error(() -> "Expected 3 ints for BlockPos");
           },
           pos -> Arrays.stream(new int[] {pos.getX(), pos.getY(), pos.getZ()}));
+  /** Codec for serializing and deserializing Sets of BlockPos objects. */
   public static final Codec<Set<BlockPos>> BLOCK_POS_SET_CODEC =
       BLOCK_POS_CODEC.listOf().xmap(HashSet::new, ArrayList::new);
+  /** Codec for dimension resource keys. */
   public static final Codec<ResourceKey<Level>> LEVEL_KEY_CODEC =
-      net.minecraft.resources.ResourceKey.codec(Registries.DIMENSION);
+    net.minecraft.resources.ResourceKey.codec(Registries.DIMENSION);
+  /** Main codec for serializing and deserializing PortalInfoData objects. */
   public static final Codec<PortalInfoData> CODEC =
       RecordCodecBuilder.create(
           instance ->
@@ -89,6 +99,18 @@ public record PortalInfoData(
                           .forGetter(PortalInfoData::lastUsed))
                   .apply(instance, PortalInfoData::new));
 
+  /**
+   * Creates a new portal with auto-generated UUID and current timestamp.
+   *
+   * @param dimension The dimension where the portal exists
+   * @param origin The origin position of the portal
+   * @param frameBlocks Set of positions for the frame blocks
+   * @param innerBlocks Set of positions for the inner blocks
+   * @param cornerBlocks Set of positions for the corner blocks
+   * @param creator UUID of the player who created the portal
+   * @param color Color of the portal
+   * @param edgeBlockType Block type used for the portal frame
+   */
   public PortalInfoData(
       final ResourceKey<Level> dimension,
       final BlockPos origin,
@@ -111,6 +133,11 @@ public record PortalInfoData(
         System.currentTimeMillis());
   }
 
+  /**
+   * Creates a copy of this portal with an updated last used timestamp.
+   *
+   * @return New PortalInfoData instance with current timestamp
+   */
   public PortalInfoData withUpdatedLastUsed() {
     return new PortalInfoData(
         this.uuid,
@@ -125,16 +152,34 @@ public record PortalInfoData(
         System.currentTimeMillis());
   }
 
+  /**
+   * Checks if the portal contains the given position within its inner blocks.
+   *
+   * @param pos Position to check
+   * @return true if the position is inside the portal
+   */
   public boolean contains(final BlockPos pos) {
     return innerBlocks.contains(pos);
   }
 
+  /**
+   * Determines if this portal can be linked to another portal based on matching properties.
+   *
+   * @param other The other portal to check for compatibility
+   * @return true if the portals can be linked
+   */
   public boolean isLinkedTo(final PortalInfoData other) {
     return !this.equals(other)
         && this.color == other.color
         && this.edgeBlockType == other.edgeBlockType;
   }
 
+  /**
+   * Calculates the teleport position for entities using this portal.
+   * Uses the center of inner blocks or falls back to origin if needed.
+   *
+   * @return The position where entities should teleport to
+   */
   public BlockPos getTeleportPosition() {
 
     // Use inner blocks to calculate the teleport position.
