@@ -115,16 +115,10 @@ public class DimensionService {
     return customDimensions;
   }
 
-  /**
-   * Creates a backup of a dimension if needed.
-   *
-   * @param server The Minecraft server
-   * @param dimensionName The dimension name to backup
-   * @return true if backup was successful or not needed, false on error
-   */
+  /** Creates a backup of a dimension if needed. */
   public static boolean backupDimensionIfNeeded(MinecraftServer server, String dimensionName) {
     if (!DimensionConfig.BACKUP_DELETED_DIMENSIONS) {
-      return true; // Backups disabled, return true for "success"
+      return true;
     }
 
     if (server == null || dimensionName == null || dimensionName.isEmpty()) {
@@ -132,45 +126,58 @@ public class DimensionService {
     }
 
     try {
-      // Get dimension directory
-      Path worldPath = server.getWorldPath(LevelResource.ROOT);
-      Path dimensionPath = worldPath.resolve(dimensionName);
+      Path dimensionPath = getDimensionPath(server, dimensionName);
       if (!Files.exists(dimensionPath)) {
-        return true; // Nothing to backup
+        return true;
       }
 
-      // Create backup directory
-      Path backupDir = worldPath.resolve("backups").resolve("dimensions");
-      Files.createDirectories(backupDir);
-
-      // Create timestamp for backup folder name
-      String timestamp =
-          java.time.LocalDateTime.now()
-              .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-
-      Path backupPath = backupDir.resolve(dimensionName + "_" + timestamp);
-      Files.createDirectories(backupPath);
-
-      // Copy all files from dimension directory to backup
-      Files.walk(dimensionPath)
-          .filter(source -> !Files.isDirectory(source))
-          .forEach(
-              source -> {
-                try {
-                  Path relativePath = dimensionPath.relativize(source);
-                  Path target = backupPath.resolve(relativePath);
-                  Files.createDirectories(target.getParent());
-                  Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                  log.error("Failed to copy file during backup: {}", e.getMessage());
-                }
-              });
+      Path backupPath = createBackupPath(server, dimensionName);
+      copyDimensionFiles(dimensionPath, backupPath);
 
       log.info("Successfully created backup of dimension {} at {}", dimensionName, backupPath);
       return true;
     } catch (IOException e) {
       log.error("Failed to create backup of dimension {}: {}", dimensionName, e.getMessage());
       return false;
+    }
+  }
+
+  private static Path getDimensionPath(MinecraftServer server, String dimensionName) {
+    Path worldPath = server.getWorldPath(LevelResource.ROOT);
+    return worldPath.resolve(dimensionName);
+  }
+
+  private static Path createBackupPath(MinecraftServer server, String dimensionName)
+      throws IOException {
+    Path worldPath = server.getWorldPath(LevelResource.ROOT);
+    Path backupDir = worldPath.resolve("backups").resolve("dimensions");
+    Files.createDirectories(backupDir);
+
+    String timestamp =
+        java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+
+    Path backupPath = backupDir.resolve(dimensionName + "_" + timestamp);
+    Files.createDirectories(backupPath);
+    return backupPath;
+  }
+
+  private static void copyDimensionFiles(Path dimensionPath, Path backupPath) throws IOException {
+    try (var pathStream = Files.walk(dimensionPath)) {
+      pathStream
+          .filter(source -> !Files.isDirectory(source))
+          .forEach(source -> copyFile(source, dimensionPath, backupPath));
+    }
+  }
+
+  private static void copyFile(Path source, Path dimensionPath, Path backupPath) {
+    try {
+      Path relativePath = dimensionPath.relativize(source);
+      Path target = backupPath.resolve(relativePath);
+      Files.createDirectories(target.getParent());
+      Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      log.error("Failed to copy file during backup: {}", e.getMessage());
     }
   }
 

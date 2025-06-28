@@ -19,7 +19,6 @@
 
 package de.markusbordihn.worlddimensionnexus.level;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -30,21 +29,25 @@ import net.neoforged.neoforge.event.level.BlockEvent.EntityPlaceEvent;
 @EventBusSubscriber
 public class BlockEventHandler {
 
+  private BlockEventHandler() {}
+
   @SubscribeEvent
   public static void onBlockPlace(EntityPlaceEvent event) {
     if (event.isCanceled()) {
       return;
     }
-    if (event.getLevel() instanceof ServerLevel serverLevel
-        && event.getEntity() instanceof ServerPlayer serverPlayer
-        && event.getPos() instanceof BlockPos blockPos) {
-      BlockEvents.handleBlockPlace(
-          serverLevel,
-          blockPos,
-          serverPlayer,
-          event.getPlacedBlock().getBlock(),
-          event.getPlacedBlock());
+
+    if (!(event.getLevel() instanceof ServerLevel serverLevel)
+        || !(event.getEntity() instanceof ServerPlayer serverPlayer)) {
+      return;
     }
+
+    BlockEvents.handleBlockPlace(
+        serverLevel,
+        event.getPos(),
+        serverPlayer,
+        event.getPlacedBlock().getBlock(),
+        event.getPlacedBlock());
   }
 
   @SubscribeEvent
@@ -52,11 +55,21 @@ public class BlockEventHandler {
     if (event.isCanceled()) {
       return;
     }
-    if (event.getLevel() instanceof ServerLevel serverLevel
-        && event.getPlayer() instanceof ServerPlayer serverPlayer
-        && event.getPos() instanceof BlockPos blockPos
-        && !BlockEvents.handleBlockBreak(
-            serverLevel, blockPos, serverPlayer, event.getState().getBlock(), event.getState())) {
+
+    if (!(event.getLevel() instanceof ServerLevel serverLevel)
+        || !(event.getPlayer() instanceof ServerPlayer serverPlayer)) {
+      return;
+    }
+
+    boolean allowed =
+        BlockEvents.handleBlockBreak(
+            serverLevel,
+            event.getPos(),
+            serverPlayer,
+            event.getState().getBlock(),
+            event.getState());
+
+    if (!allowed) {
       event.setCanceled(true);
     }
   }

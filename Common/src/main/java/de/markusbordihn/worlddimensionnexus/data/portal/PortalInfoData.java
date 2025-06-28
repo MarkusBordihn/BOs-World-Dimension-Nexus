@@ -37,10 +37,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
 /**
- * Immutable data structure representing a portal in the world.
- *
- * <p>Contains all necessary information to identify, locate, and manage a portal,
- * including its position, dimensions, appearance, and metadata.
+ * Immutable data structure representing a portal in the world. Contains all necessary information
+ * to identify, locate, and manage a portal, including its position, dimensions, appearance, and
+ * metadata.
  */
 public record PortalInfoData(
     UUID uuid,
@@ -64,12 +63,15 @@ public record PortalInfoData(
                 : DataResult.error(() -> "Expected 3 ints for BlockPos");
           },
           pos -> Arrays.stream(new int[] {pos.getX(), pos.getY(), pos.getZ()}));
+
+  /** Codec for dimension resource keys. */
+  public static final Codec<ResourceKey<Level>> LEVEL_KEY_CODEC =
+      net.minecraft.resources.ResourceKey.codec(Registries.DIMENSION);
+
   /** Codec for serializing and deserializing Sets of BlockPos objects. */
   public static final Codec<Set<BlockPos>> BLOCK_POS_SET_CODEC =
       BLOCK_POS_CODEC.listOf().xmap(HashSet::new, ArrayList::new);
-  /** Codec for dimension resource keys. */
-  public static final Codec<ResourceKey<Level>> LEVEL_KEY_CODEC =
-    net.minecraft.resources.ResourceKey.codec(Registries.DIMENSION);
+
   /** Main codec for serializing and deserializing PortalInfoData objects. */
   public static final Codec<PortalInfoData> CODEC =
       RecordCodecBuilder.create(
@@ -175,8 +177,8 @@ public record PortalInfoData(
   }
 
   /**
-   * Calculates the teleport position for entities using this portal.
-   * Uses the center of inner blocks or falls back to origin if needed.
+   * Calculates the teleport position for entities using this portal. Uses the center of inner
+   * blocks or falls back to origin if needed.
    *
    * @return The position where entities should teleport to
    */

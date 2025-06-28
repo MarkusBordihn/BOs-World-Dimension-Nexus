@@ -50,17 +50,19 @@ public class DebugCommand extends Command {
     if (enable) {
       sendSuccessMessage(
           context,
-          "► Enable debug for "
-              + Constants.MOD_NAME
-              + ", please check debug.log for the full output.",
+          String.format(
+              "► Enable debug for %s, please check debug.log for the full output.",
+              Constants.MOD_NAME),
           ChatFormatting.GREEN);
       sendSuccessMessage(
           context,
-          "> Use '/" + Constants.MOD_COMMAND + " debug false' to disable the debug!",
+          String.format("> Use '/%s debug false' to disable the debug!", Constants.MOD_COMMAND),
           ChatFormatting.WHITE);
     } else {
       sendSuccessMessage(
-          context, "■ Disable debug for " + Constants.MOD_NAME + "!", ChatFormatting.RED);
+          context,
+          String.format("■ Disable debug for %s!", Constants.MOD_NAME),
+          ChatFormatting.RED);
       sendSuccessMessage(
           context,
           "> Please check the latest.log and/or debug.log for the full output.",

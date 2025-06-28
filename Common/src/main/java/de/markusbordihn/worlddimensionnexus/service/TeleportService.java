@@ -35,22 +35,19 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
 /**
- * Service class for handling portal teleportation and effects. This class contains the core
- * business logic related to teleportation mechanics.
+ * Service for portal teleportation effects and state management. Handles delays, cooldowns,
+ * visual/audio effects, and cache cleanup.
  */
 public class TeleportService {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Teleport Service");
 
-  // Teleportation state tracking
   private static final Map<UUID, Long> pendingTeleportTime = new ConcurrentHashMap<>();
   private static final Map<UUID, Long> lastPendingTeleportTime = new ConcurrentHashMap<>();
   private static final Map<UUID, Long> teleportCooldown = new ConcurrentHashMap<>();
   private static final Map<UUID, Long> lastCooldownMessage = new ConcurrentHashMap<>();
 
-  private TeleportService() {
-    // Private constructor to prevent instantiation
-  }
+  private TeleportService() {}
 
   /**
    * Apply pre-teleport effects to a player (particles and confusion effect).
@@ -185,5 +182,13 @@ public class TeleportService {
     lastPendingTeleportTime.remove(playerUUID);
     teleportCooldown.remove(playerUUID);
     lastCooldownMessage.remove(playerUUID);
+  }
+
+  /** Clears all teleportation state data for clean world transitions. */
+  public static void clearAllState() {
+    pendingTeleportTime.clear();
+    lastPendingTeleportTime.clear();
+    teleportCooldown.clear();
+    lastCooldownMessage.clear();
   }
 }

@@ -23,15 +23,20 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
+import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenInitializer;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionExporter;
 import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionImporter;
 import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionImportFileSuggestion;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
+import de.markusbordihn.worlddimensionnexus.utils.TeleportHelper;
 import java.io.File;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.DimensionArgument;
@@ -61,7 +66,22 @@ public class DimensionCommand extends Command {
                             context ->
                                 createDimension(
                                     context.getSource(),
-                                    StringArgumentType.getString(context, "name")))))
+                                    StringArgumentType.getString(context, "name")))
+                        .then(
+                            Commands.argument("type", StringArgumentType.word())
+                                .suggests(
+                                    (context, builder) -> {
+                                      for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
+                                        builder.suggest(type.getName());
+                                      }
+                                      return builder.buildFuture();
+                                    })
+                                .executes(
+                                    context ->
+                                        createTypedDimension(
+                                            context.getSource(),
+                                            StringArgumentType.getString(context, "name"),
+                                            StringArgumentType.getString(context, "type"))))))
         .then(
             Commands.literal("remove")
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
@@ -162,7 +182,20 @@ public class DimensionCommand extends Command {
                                     StringArgumentType.getString(context, "name"))))
                 .then(
                     Commands.literal("off")
-                        .executes(context -> clearAutoTeleport(context.getSource()))));
+                        .executes(context -> clearAutoTeleport(context.getSource()))))
+        .then(
+            Commands.literal("types")
+                .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
+                .executes(context -> listChunkGeneratorTypes(context.getSource())))
+        .then(
+            Commands.literal("worldgen")
+                .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
+                .then(
+                    Commands.literal("reload")
+                        .executes(context -> reloadWorldgenConfigs(context.getSource())))
+                .then(
+                    Commands.literal("list")
+                        .executes(context -> listWorldgenConfigs(context.getSource()))));
   }
 
   public static int listDimensions(CommandSourceStack context) {
@@ -208,12 +241,9 @@ public class DimensionCommand extends Command {
 
   public static int teleportPlayerToDimension(
       CommandSourceStack source, String name, ServerPlayer player) {
-    ServerLevel level = DimensionManager.getDimensionServerLevel(name);
-    if (level == null) {
-      return sendFailureMessage(source, "Dimension '" + name + "' not found.");
+    if (!TeleportHelper.safeTeleportToDimension(player, name)) {
+      return sendFailureMessage(source, "Dimension '" + name + "' not found or teleport failed.");
     }
-    player.teleportTo(
-        level, 0.5, level.getMaxBuildHeight(), 0.5, player.getYRot(), player.getXRot());
     sendSuccessMessage(
         source, "Teleported " + player.getName().getString() + " to '" + name + "'.");
     return Command.SINGLE_SUCCESS;
@@ -271,5 +301,82 @@ public class DimensionCommand extends Command {
     ServerPlayer player = source.getPlayerOrException();
     // AutoTeleportManager.clearAutoTeleport(player.getUUID());
     return sendSuccessMessage(source, "Auto-teleport on join cleared.");
+  }
+
+  // Neue Methoden für ChunkGeneratorType-Support
+  public static int createTypedDimension(
+      CommandSourceStack context, String dimensionName, String typeName) {
+    ChunkGeneratorType type = ChunkGeneratorType.fromString(typeName);
+    DimensionInfoData dimensionInfo = new DimensionInfoData(dimensionName, type);
+    ServerLevel serverLevel = DimensionManager.addOrCreateDimension(dimensionInfo, true);
+
+    if (serverLevel != null) {
+      return sendSuccessMessage(
+          context,
+          String.format(
+              "Dimension '%s' created successfully with type '%s'!",
+              dimensionName, type.getName()));
+    }
+
+    return sendFailureMessage(
+        context,
+        String.format("Failed to create dimension '%s' with type '%s'!", dimensionName, typeName));
+  }
+
+  public static int listChunkGeneratorTypes(CommandSourceStack context) {
+    sendSuccessMessage(context, "Available Chunk Generator Types\n===============================");
+
+    for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
+      String configStatus = getConfigStatus(type);
+      sendSuccessMessage(context, String.format("- %s (%s)", type.getName(), configStatus));
+    }
+    return Command.SINGLE_SUCCESS;
+  }
+
+  private static String getConfigStatus(ChunkGeneratorType type) {
+    return WorldgenConfigLoader.getConfig(type).isPresent() ? "✓ Configured" : "✗ Default";
+  }
+
+  public static int reloadWorldgenConfigs(CommandSourceStack context) {
+    try {
+      WorldgenInitializer.reload(context.getServer());
+      return sendSuccessMessage(context, "Worldgen configurations reloaded successfully!");
+    } catch (Exception e) {
+      return sendFailureMessage(context, "Failed to reload worldgen configs: " + e.getMessage());
+    }
+  }
+
+  public static int listWorldgenConfigs(CommandSourceStack context) {
+    var configs = WorldgenConfigLoader.getAllConfigs();
+    if (configs.isEmpty()) {
+      return sendFailureMessage(context, "No worldgen configurations loaded.");
+    }
+
+    sendSuccessMessage(context, "Loaded Worldgen Configurations\n==============================");
+
+    for (var entry : configs.entrySet()) {
+      String configDetails = buildConfigDetails(entry.getKey(), entry.getValue());
+      sendSuccessMessage(context, configDetails);
+    }
+    return Command.SINGLE_SUCCESS;
+  }
+
+  private static String buildConfigDetails(
+      ChunkGeneratorType type, WorldgenConfigLoader.WorldgenConfig config) {
+    StringBuilder details = new StringBuilder();
+    details.append("- ").append(type.getName()).append(":");
+
+    appendConfigDetail(details, "noise", config.noiseSettings());
+    appendConfigDetail(details, "biome", config.biomeSource());
+
+    if (!config.customSettings().isEmpty()) {
+      details.append(" custom=").append(config.customSettings().size()).append(" settings");
+    }
+
+    return details.toString();
+  }
+
+  private static void appendConfigDetail(StringBuilder details, String key, Optional<?> value) {
+    value.ifPresent(o -> details.append(" ").append(key).append("=").append(o));
   }
 }

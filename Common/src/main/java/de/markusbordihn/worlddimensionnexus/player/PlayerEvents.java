@@ -4,6 +4,7 @@ import de.markusbordihn.worlddimensionnexus.block.PortalBlockManager;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
+import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
@@ -11,6 +12,14 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class PlayerEvents {
+
+  public static void handlePlayerLoginEvent(ServerPlayer serverPlayer) {
+    AutoTeleportManager.handlePlayerLogin(serverPlayer);
+  }
+
+  public static void handlePlayerLogoutEvent(ServerPlayer serverPlayer) {
+    AutoTeleportManager.handlePlayerLogout(serverPlayer);
+  }
 
   public static void handlePlayerPostTickEvent(ServerPlayer serverPlayer) {
     BlockState blockState = serverPlayer.getInBlockState();

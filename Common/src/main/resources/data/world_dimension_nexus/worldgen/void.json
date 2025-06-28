@@ -1,0 +1,10 @@
+{
+  "type": "void",
+  "custom_settings": {
+    "layers": [],
+    "biome": "minecraft:the_void",
+    "structures": [],
+    "lakes": false,
+    "spawn_structures": false
+  }
+}

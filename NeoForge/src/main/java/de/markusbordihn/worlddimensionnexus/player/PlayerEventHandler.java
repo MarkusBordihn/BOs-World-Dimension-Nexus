@@ -22,10 +22,25 @@ package de.markusbordihn.worlddimensionnexus.player;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber
 public class PlayerEventHandler {
+
+  @SubscribeEvent
+  public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerLoginEvent(serverPlayer);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerLogoutEvent(serverPlayer);
+    }
+  }
 
   @SubscribeEvent
   public static void onPlayerTick(PlayerTickEvent.Post event) {

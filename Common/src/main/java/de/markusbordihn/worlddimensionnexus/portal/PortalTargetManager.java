@@ -35,8 +35,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 /**
- * Manager class for portal targeting and teleportation. This class delegates business logic to
- * appropriate service classes.
+ * Manager for portal targeting and teleportation operations. Serves as a facade that delegates
+ * portal operations to appropriate service classes.
  */
 public class PortalTargetManager {
 
@@ -44,22 +44,10 @@ public class PortalTargetManager {
 
   private PortalTargetManager() {}
 
-  /**
-   * Synchronizes portal targets with the portal data storage.
-   *
-   * @param targetList List of portal targets to synchronize
-   */
   public static void sync(final List<PortalTargetData> targetList) {
     PortalService.syncTargets(targetList);
   }
 
-  /**
-   * Automatically links portals based on matching properties.
-   *
-   * @param portalInfo The portal to link
-   * @param dimensionPortals Portals in the same dimension
-   * @param allPortals All portals across all dimensions
-   */
   public static void autoLinkPortal(
       final PortalInfoData portalInfo,
       final List<PortalInfoData> dimensionPortals,
@@ -67,33 +55,14 @@ public class PortalTargetManager {
     PortalService.autoLinkPortal(portalInfo, dimensionPortals, allPortals);
   }
 
-  /**
-   * Gets the target for a specific portal.
-   *
-   * @param portalInfo The portal to get the target for
-   * @return The target data or null if not found
-   */
   public static PortalTargetData getTarget(final PortalInfoData portalInfo) {
     return PortalService.getTarget(portalInfo);
   }
 
-  /**
-   * Sets a portal target to another portal.
-   *
-   * @param portalInfo The source portal
-   * @param target The target portal
-   */
   public static void setTarget(final PortalInfoData portalInfo, final PortalInfoData target) {
     PortalService.setTarget(portalInfo, target);
   }
 
-  /**
-   * Sets a portal target to a specific dimension and position.
-   *
-   * @param portalInfo The source portal
-   * @param targetDimension The target dimension
-   * @param targetPosition The target position
-   */
   public static void setTarget(
       final PortalInfoData portalInfo,
       final ResourceKey<Level> targetDimension,
@@ -101,36 +70,19 @@ public class PortalTargetManager {
     PortalService.setTarget(portalInfo, targetDimension, targetPosition);
   }
 
-  /**
-   * Removes a portal target.
-   *
-   * @param portalInfo The portal to remove the target for
-   */
   public static void removeTarget(final PortalInfoData portalInfo) {
     PortalService.removeTarget(portalInfo);
   }
 
-  /**
-   * Removes a portal target by UUID.
-   *
-   * @param portalUUID The UUID of the portal to remove
-   */
   public static void removeTarget(final UUID portalUUID) {
     PortalService.removeTarget(portalUUID);
   }
 
-  /** Clears all portal targets. */
   public static void clear() {
     PortalService.clear();
   }
 
-  /**
-   * Handles teleportation with delay when a player stands on a portal.
-   *
-   * @param serverLevel The server level
-   * @param serverPlayer The player to teleport
-   * @param portalInfo The portal information
-   */
+  /** Handles delayed teleportation when a player stands on a portal. */
   public static void teleportPlayerWithDelay(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,
@@ -138,36 +90,26 @@ public class PortalTargetManager {
     UUID playerId = serverPlayer.getUUID();
     long currentTick = serverLevel.getGameTime();
 
-    // Validate the portal target information
     PortalTargetData portalTarget = PortalService.getTarget(portalInfo);
     if (portalTarget == null) {
       return;
     }
 
-    // Check if the player is still standing on the portal
     if (TeleportService.hasPlayerLeftPortal(playerId, currentTick)) {
       return;
     }
 
-    // Add teleport delay if not already pending
     if (TeleportService.startTeleportDelay(playerId, currentTick)) {
       TeleportService.applyTeleportEffects(serverLevel, serverPlayer);
       return;
     }
 
-    // If the player is already pending teleportation, check if the delay has passed
     if (TeleportService.isTeleportDelayExpired(playerId, currentTick)) {
       teleportPlayer(serverLevel, serverPlayer, portalInfo);
     }
   }
 
-  /**
-   * Teleports a player to a portal's target.
-   *
-   * @param serverLevel The server level
-   * @param serverPlayer The player to teleport
-   * @param portalInfo The portal information
-   */
+  /** Immediately teleports a player to a portal's target destination. */
   public static void teleportPlayer(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,
@@ -176,7 +118,6 @@ public class PortalTargetManager {
       return;
     }
 
-    // Validate the portal target information
     PortalTargetData portalTarget = PortalService.getTarget(portalInfo);
     if (portalTarget == null) {
       log.error("No portal target found for portal: {}", portalInfo);
@@ -185,13 +126,11 @@ public class PortalTargetManager {
       return;
     }
 
-    // Check if the player is on cooldown
     UUID playerUUID = serverPlayer.getUUID();
     if (TeleportService.isPlayerOnCooldown(serverPlayer, serverLevel.getGameTime())) {
       return;
     }
 
-    // Get the target level
     ServerLevel targetLevel = serverPlayer.server.getLevel(portalTarget.dimension());
     if (targetLevel == null) {
       log.error("Target level {} not found for portal: {}", portalTarget.dimension(), portalInfo);
@@ -200,11 +139,9 @@ public class PortalTargetManager {
       return;
     }
 
-    // Set cooldown and play teleport sound
     TeleportService.setPlayerCooldown(playerUUID, serverLevel.getGameTime());
     TeleportService.playTeleportSound(serverLevel, portalInfo.origin());
 
-    // Teleport the player
     serverPlayer.teleportTo(
         targetLevel,
         portalTarget.position().getX(),

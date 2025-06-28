@@ -21,9 +21,11 @@ package de.markusbordihn.worlddimensionnexus.commands.manager;
 
 import com.mojang.brigadier.CommandDispatcher;
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.server.commands.AutoTeleportCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.DebugCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.DimensionCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.PortalCommand;
+import de.markusbordihn.worlddimensionnexus.server.commands.TeleportCommand;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -45,8 +47,10 @@ public class CommandManager {
         Constants.MOD_NAME);
     commandDispatcher.register(
         Commands.literal(Constants.MOD_COMMAND)
+            .then(AutoTeleportCommand.register())
             .then(DebugCommand.register())
             .then(DimensionCommand.register())
-            .then(PortalCommand.register()));
+            .then(PortalCommand.register())
+            .then(TeleportCommand.register()));
   }
 }

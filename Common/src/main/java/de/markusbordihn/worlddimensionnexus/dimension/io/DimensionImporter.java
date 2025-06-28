@@ -51,46 +51,63 @@ public class DimensionImporter {
       throws IOException {
     Path tempDir = Files.createTempDirectory("import_dimension");
 
+    try {
+      extractZipFile(importFile, tempDir);
+      DimensionImportData importData =
+          extractDimensionInfo(importFile, tempDir, dimensionId, dimensionTypeId);
+      copyDimensionFiles(minecraftServer, tempDir, importData);
+
+      log.info(
+          "Imported dimension {}:{} (type: {}) from {}",
+          importData.namespace,
+          importData.path,
+          importData.type,
+          importFile);
+      return true;
+    } finally {
+      cleanupTempDirectory(tempDir);
+    }
+  }
+
+  private static void extractZipFile(File importFile, Path tempDir) throws IOException {
     try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(importFile))) {
       ZipEntry entry;
       while ((entry = zipInputStream.getNextEntry()) != null) {
-        Path filePath = tempDir.resolve(entry.getName());
-        if (entry.isDirectory()) {
-          Files.createDirectories(filePath);
-        } else {
-          Files.createDirectories(filePath.getParent());
-          try (OutputStream os = Files.newOutputStream(filePath)) {
-            zipInputStream.transferTo(os);
-          }
-        }
+        extractZipEntry(zipInputStream, entry, tempDir);
       }
     }
+  }
 
+  private static void extractZipEntry(ZipInputStream zipInputStream, ZipEntry entry, Path tempDir)
+      throws IOException {
+    Path filePath = tempDir.resolve(entry.getName());
+    if (entry.isDirectory()) {
+      Files.createDirectories(filePath);
+    } else {
+      Files.createDirectories(filePath.getParent());
+      try (OutputStream os = Files.newOutputStream(filePath)) {
+        zipInputStream.transferTo(os);
+      }
+    }
+  }
+
+  private static DimensionImportData extractDimensionInfo(
+      File importFile, Path tempDir, ResourceLocation dimensionId, ResourceLocation dimensionTypeId)
+      throws IOException {
     // Default values
     String namespace = Constants.MOD_ID;
     String path = importFile.getName().replaceAll("\\..*$", "");
     String type = "minecraft:overworld";
 
-    // Try reading dimension.info with Codec (preferred)
-    Path infoFile = tempDir.resolve("dimension.info");
-    if (!Files.exists(infoFile)) {
-      infoFile = tempDir.resolve("dimension.json");
-    }
-    if (Files.exists(infoFile)) {
-      try (Reader reader = Files.newBufferedReader(infoFile)) {
-        com.google.gson.JsonElement jsonElement = com.google.gson.JsonParser.parseReader(reader);
-        var result =
-            DimensionInfoData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, jsonElement);
-        if (result.result().isPresent()) {
-          DimensionInfoData info = result.result().get();
-          namespace = info.name().location().getNamespace();
-          path = info.name().location().getPath();
-          type = info.type().location().toString();
-        }
-      }
+    // Try reading dimension info from files
+    DimensionImportData fileData = readDimensionInfoFromFile(tempDir);
+    if (fileData != null) {
+      namespace = fileData.namespace;
+      path = fileData.path;
+      type = fileData.type;
     }
 
-    // Overwrite with command parameters if given
+    // Override with command parameters if provided
     if (dimensionId != null) {
       namespace = dimensionId.getNamespace();
       path = dimensionId.getPath();
@@ -99,42 +116,103 @@ public class DimensionImporter {
       type = dimensionTypeId.toString();
     }
 
+    return new DimensionImportData(namespace, path, type);
+  }
+
+  private static DimensionImportData readDimensionInfoFromFile(Path tempDir) {
+    Path infoFile = findDimensionInfoFile(tempDir);
+    if (infoFile == null) {
+      return null;
+    }
+
+    try (Reader reader = Files.newBufferedReader(infoFile)) {
+      com.google.gson.JsonElement jsonElement = com.google.gson.JsonParser.parseReader(reader);
+      var result =
+          DimensionInfoData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, jsonElement);
+
+      if (result.result().isPresent()) {
+        DimensionInfoData info = result.result().get();
+        return new DimensionImportData(
+            info.name().location().getNamespace(),
+            info.name().location().getPath(),
+            info.type().location().toString());
+      }
+    } catch (IOException e) {
+      log.warn("Failed to read dimension info file: {}", e.getMessage());
+    }
+    return null;
+  }
+
+  private static Path findDimensionInfoFile(Path tempDir) {
+    Path infoFile = tempDir.resolve("dimension.info");
+    if (Files.exists(infoFile)) {
+      return infoFile;
+    }
+
+    infoFile = tempDir.resolve("dimension.json");
+    if (Files.exists(infoFile)) {
+      return infoFile;
+    }
+
+    return null;
+  }
+
+  private static void copyDimensionFiles(
+      MinecraftServer minecraftServer, Path tempDir, DimensionImportData importData)
+      throws IOException {
     Path worldDir = minecraftServer.getWorldPath(LevelResource.ROOT);
-    Path targetDir = worldDir.resolve("dimensions").resolve(namespace).resolve(path);
+    Path targetDir =
+        worldDir.resolve("dimensions").resolve(importData.namespace).resolve(importData.path);
     Files.createDirectories(targetDir);
 
-    // Copy files from tempDir to targetDir
     try (Stream<Path> files = Files.walk(tempDir)) {
-      files.forEach(
-          source -> {
-            Path dest = targetDir.resolve(tempDir.relativize(source).toString());
-            if (DimensionIOUtils.shouldSkipFile(tempDir.relativize(source))) {
-              return;
-            }
-            try {
-              if (Files.isDirectory(source)) {
-                Files.createDirectories(dest);
-              } else {
-                Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
-              }
-            } catch (IOException ignored) {
-            }
-          });
+      files.forEach(source -> copyFileIfNeeded(source, tempDir, targetDir));
+    }
+  }
+
+  private static void copyFileIfNeeded(Path source, Path tempDir, Path targetDir) {
+    Path relativePath = tempDir.relativize(source);
+    if (DimensionIOUtils.shouldSkipFile(relativePath)) {
+      return;
     }
 
-    // Cleanup
+    Path dest = targetDir.resolve(relativePath.toString());
+    try {
+      if (Files.isDirectory(source)) {
+        Files.createDirectories(dest);
+      } else {
+        Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
+      }
+    } catch (IOException e) {
+      log.warn("Failed to copy file {}: {}", source, e.getMessage());
+    }
+  }
+
+  private static void cleanupTempDirectory(Path tempDir) {
     try (Stream<Path> walk = Files.walk(tempDir)) {
-      walk.sorted(Comparator.reverseOrder())
-          .forEach(
-              p -> {
-                try {
-                  Files.delete(p);
-                } catch (IOException ignored) {
-                }
-              });
+      walk.sorted(Comparator.reverseOrder()).forEach(DimensionImporter::deleteQuietly);
+    } catch (IOException e) {
+      log.warn("Failed to cleanup temp directory {}: {}", tempDir, e.getMessage());
     }
+  }
 
-    log.info("Imported dimension {}:{} (type: {}) from {}", namespace, path, type, importFile);
-    return true;
+  private static void deleteQuietly(Path path) {
+    try {
+      Files.delete(path);
+    } catch (IOException e) {
+      log.debug("Could not delete {}: {}", path, e.getMessage());
+    }
+  }
+
+  private static class DimensionImportData {
+    final String namespace;
+    final String path;
+    final String type;
+
+    DimensionImportData(String namespace, String path, String type) {
+      this.namespace = namespace;
+      this.path = path;
+      this.type = type;
+    }
   }
 }

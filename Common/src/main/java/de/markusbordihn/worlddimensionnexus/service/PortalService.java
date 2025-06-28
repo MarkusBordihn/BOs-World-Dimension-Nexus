@@ -33,15 +33,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 /**
- * Portal Service for managing portals and their targeting information.
- *
- * <p>This service class provides functionality to create, manage, and maintain portal links between
- * different dimensions. It handles automatic linking of portals based on matching properties (like
- * color and edge block type) and provides methods to manage portal targets and their storage
- * persistence.
- *
- * <p>The service is designed as a singleton with static methods to ensure consistent portal
- * management throughout the application.
+ * Portal Service for managing portals and their targeting information. Provides functionality to
+ * create, manage, and maintain portal links between different dimensions. Handles automatic linking
+ * based on matching properties and manages portal target storage.
  */
 public class PortalService {
 
@@ -54,7 +48,7 @@ public class PortalService {
    */
   private static final Map<UUID, PortalTargetData> portalTargets = new ConcurrentHashMap<>();
 
-  /** Private constructor to prevent instantiation of this utility class. */
+  /** Private constructor to prevent instantiation. */
   private PortalService() {
     // Private constructor to prevent instantiation
   }

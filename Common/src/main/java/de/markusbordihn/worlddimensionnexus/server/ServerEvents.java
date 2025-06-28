@@ -24,8 +24,11 @@ import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
 import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
+import de.markusbordihn.worlddimensionnexus.saveddata.AutoTeleportDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
+import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
+import de.markusbordihn.worlddimensionnexus.utils.CacheManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -39,6 +42,9 @@ public class ServerEvents {
   public static void handleServerStartingEvent(final MinecraftServer minecraftServer) {
     log.info("Server starting {} ...", minecraftServer);
 
+    // Clear all static caches to prevent data bleeding between worlds
+    CacheManager.clearAllCaches();
+
     ServerLevel overworld = minecraftServer.getLevel(Level.OVERWORLD);
     if (overworld == null) {
       log.error("Overworld not found, unable to register global data storage!");
@@ -51,6 +57,9 @@ public class ServerEvents {
     // Register global Portal Data Storage on the Overworld.
     PortalDataStorage.init(overworld);
 
+    // Initialize AutoTeleport Data Storage on the Overworld.
+    AutoTeleportDataStorage.init(overworld);
+
     // Synchronize Dimension Data Storage to Dimension Manager and register all dimensions.
     DimensionManager.sync(minecraftServer, DimensionDataStorage.get().getDimensions());
   }
@@ -58,11 +67,24 @@ public class ServerEvents {
   public static void handleServerStartedEvent(final MinecraftServer minecraftServer) {
     log.info("Server started {} ...", minecraftServer);
 
+    ServerLevel overworld = minecraftServer.getLevel(Level.OVERWORLD);
+    if (overworld != null) {
+      // Load saved auto-teleport rules from storage
+      AutoTeleportManager.loadGlobalRules(overworld);
+    }
+
     // Synchronize Portal Data Storage to Portal Manager.
     PortalManager.sync(PortalDataStorage.get().getPortals());
     PortalTargetManager.sync(PortalDataStorage.get().getTargets());
 
     // Copy example dimension files to world folder.
     WorldDataPackResourceManager.copyDimensionFilesToWorld(minecraftServer);
+  }
+
+  public static void handleServerStoppingEvent(final MinecraftServer minecraftServer) {
+    log.info("Server stopping {} ...", minecraftServer);
+
+    // Clear all static caches when server stops
+    CacheManager.clearAllCaches();
   }
 }

@@ -39,27 +39,48 @@ public final class DebugManager {
     if (logLevel == null || logLevel == logger.getLevel()) {
       return;
     }
+
     String loggerName = logger.getName();
     LoggerContext context = (LoggerContext) LogManager.getContext(false);
     Configuration config = context.getConfiguration();
     LoggerConfig loggerConfig = config.getLoggerConfig(loggerName);
-    LoggerConfig specificConfig = loggerConfig;
-    if (!loggerConfig.getName().equals(loggerName)) {
-      log.info(
-          "{} Add new logger config for {} with level {} ...", LOG_PREFIX, loggerName, logLevel);
-      specificConfig = new LoggerConfig(loggerName, logLevel, true);
-      specificConfig.setParent(loggerConfig);
-      config.addLogger(loggerName, specificConfig);
-    } else {
-      log.info(
-          "{} Changing log level for {} from {} to {}",
-          LOG_PREFIX,
-          loggerName,
-          logger.getLevel(),
-          logLevel);
-    }
+
+    LoggerConfig specificConfig =
+        getOrCreateLoggerConfig(loggerName, logLevel, loggerConfig, config, logger);
     specificConfig.setLevel(logLevel);
     context.updateLoggers();
+  }
+
+  private static LoggerConfig getOrCreateLoggerConfig(
+      String loggerName,
+      Level logLevel,
+      LoggerConfig existingConfig,
+      Configuration config,
+      Logger logger) {
+    if (!existingConfig.getName().equals(loggerName)) {
+      return createNewLoggerConfig(loggerName, logLevel, existingConfig, config);
+    } else {
+      logLevelChange(loggerName, logger.getLevel(), logLevel);
+      return existingConfig;
+    }
+  }
+
+  private static LoggerConfig createNewLoggerConfig(
+      String loggerName, Level logLevel, LoggerConfig parentConfig, Configuration config) {
+    log.info("{} Add new logger config for {} with level {} ...", LOG_PREFIX, loggerName, logLevel);
+    LoggerConfig newConfig = new LoggerConfig(loggerName, logLevel, true);
+    newConfig.setParent(parentConfig);
+    config.addLogger(loggerName, newConfig);
+    return newConfig;
+  }
+
+  private static void logLevelChange(String loggerName, Level currentLevel, Level newLevel) {
+    log.info(
+        "{} Changing log level for {} from {} to {}",
+        LOG_PREFIX,
+        loggerName,
+        currentLevel,
+        newLevel);
   }
 
   public static void enableDebugLevel(boolean enable) {

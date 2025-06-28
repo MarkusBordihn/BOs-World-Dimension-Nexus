@@ -27,7 +27,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 @EventBusSubscriber
 public class CommandsEventHandler {
 
-  protected CommandsEventHandler() {}
+  private CommandsEventHandler() {}
 
   @SubscribeEvent
   public static void handleRegisterCommandsEvent(RegisterCommandsEvent event) {

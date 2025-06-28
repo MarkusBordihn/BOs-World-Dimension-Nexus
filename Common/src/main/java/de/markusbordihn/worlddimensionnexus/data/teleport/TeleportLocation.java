@@ -17,40 +17,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.data.chunk;
+package de.markusbordihn.worlddimensionnexus.data.teleport;
 
-import com.mojang.serialization.Codec;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 
-public enum ChunkGeneratorType {
-  CUSTOM("custom"),
-  FLAT("flat"),
-  NOISE("noise"),
-  DEBUG("debug"),
-  VOID("void"),
-  LOBBY("lobby"),
-  SKYBLOCK("skyblock"),
-  CAVE("cave"),
-  FLOATING_ISLANDS("floating_islands"),
-  AMPLIFIED("amplified");
+/** Immutable teleport location with dimension, position, rotation, and timestamp. */
+public record TeleportLocation(
+    ResourceKey<Level> dimension, BlockPos position, float yRot, float xRot, long timestamp) {
 
-  public static final Codec<ChunkGeneratorType> CODEC =
-      Codec.STRING.xmap(ChunkGeneratorType::fromString, ChunkGeneratorType::getName);
-  private final String name;
-
-  ChunkGeneratorType(String name) {
-    this.name = name;
-  }
-
-  public static ChunkGeneratorType fromString(String name) {
-    for (ChunkGeneratorType type : values()) {
-      if (type.name.equalsIgnoreCase(name)) {
-        return type;
-      }
-    }
-    return CUSTOM; // Fallback
-  }
-
-  public String getName() {
-    return name;
+  /** Creates a TeleportLocation with the current timestamp. */
+  public TeleportLocation(ResourceKey<Level> dimension, BlockPos position, float yRot, float xRot) {
+    this(dimension, position, yRot, xRot, System.currentTimeMillis());
   }
 }

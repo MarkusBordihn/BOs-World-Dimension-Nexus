@@ -34,10 +34,8 @@ import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
- * Persistent storage for portal data.
- *
- * <p>Responsible for saving and loading portal information and target mappings to/from the world's
- * saved data. Implements a singleton pattern for global access.
+ * Persistent storage for portal data. Responsible for saving and loading portal information and
+ * target mappings to/from the world's saved data. Implements a singleton pattern for global access.
  */
 public class PortalDataStorage extends SavedData {
 

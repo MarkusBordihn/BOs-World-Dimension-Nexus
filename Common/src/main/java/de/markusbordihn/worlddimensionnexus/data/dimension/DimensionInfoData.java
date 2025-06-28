@@ -68,6 +68,15 @@ public record DimensionInfoData(
         ChunkGeneratorType.FLAT);
   }
 
+  public DimensionInfoData(String name, ChunkGeneratorType chunkGeneratorType) {
+    this(
+        UUID.randomUUID(),
+        ResourceKey.create(
+            Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, name)),
+        BuiltinDimensionTypes.OVERWORLD,
+        chunkGeneratorType);
+  }
+
   public ChunkGenerator getChunkGenerator(MinecraftServer server) {
     return ChunkGeneratorHelper.getDefault(server, this.chunkGeneratorType);
   }

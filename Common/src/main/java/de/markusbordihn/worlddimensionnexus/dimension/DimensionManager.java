@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenInitializer;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
@@ -63,6 +64,9 @@ public class DimensionManager {
     }
     DimensionManager.minecraftServer = minecraftServer;
 
+    // Initialize worldgen system on first sync
+    WorldgenInitializer.initialize(minecraftServer);
+
     // Validate the dimension list.
     if (dimensionList == null || dimensionList.isEmpty()) {
       log.warn(
@@ -89,45 +93,53 @@ public class DimensionManager {
       return null;
     }
 
-    // Check if the dimension already exists and return it if it does.
     if (dimensions.contains(dimensionInfo)) {
       log.info("Dimension {} already exists, skipping ...", dimensionInfo);
       return getServerLevel(dimensionInfo.name());
     }
 
-    // Create the dimension if it does not exist.
+    return createNewDimension(dimensionInfo, updateStorage);
+  }
+
+  private static ServerLevel createNewDimension(
+      DimensionInfoData dimensionInfo, boolean updateStorage) {
     ChunkGenerator chunkGenerator = dimensionInfo.getChunkGenerator(minecraftServer);
     LevelStem levelStem =
         new LevelStem(dimensionInfo.getDimensionTypeHolder(minecraftServer), chunkGenerator);
 
-    // Create server level with the overworld's properties
-    ServerLevel overworld = minecraftServer.overworld();
-    ServerLevel newLevel =
-        new ServerLevel(
-            minecraftServer,
-            minecraftServer.executor,
-            minecraftServer.storageSource,
-            (ServerLevelData) overworld.getLevelData(),
-            dimensionInfo.name(),
-            levelStem,
-            overworld.getChunkSource().chunkMap.progressListener,
-            false,
-            overworld.getSeed(),
-            List.of(),
-            overworld.isDebug(),
-            null);
-
-    // Add the new dimension to the server
-    minecraftServer.levels.put(dimensionInfo.name(), newLevel);
-    dimensions.add(dimensionInfo);
-
-    // Add the dimension to the storage if required.
-    if (updateStorage) {
-      DimensionDataStorage.get().addDimension(dimensionInfo);
-    }
+    ServerLevel newLevel = buildServerLevel(dimensionInfo, levelStem);
+    registerDimension(dimensionInfo, newLevel, updateStorage);
 
     log.info("Created and loaded new dimension: {}", dimensionInfo.name().location());
     return newLevel;
+  }
+
+  private static ServerLevel buildServerLevel(
+      DimensionInfoData dimensionInfo, LevelStem levelStem) {
+    ServerLevel overworld = minecraftServer.overworld();
+    return new ServerLevel(
+        minecraftServer,
+        minecraftServer.executor,
+        minecraftServer.storageSource,
+        (ServerLevelData) overworld.getLevelData(),
+        dimensionInfo.name(),
+        levelStem,
+        overworld.getChunkSource().chunkMap.progressListener,
+        false,
+        overworld.getSeed(),
+        List.of(),
+        overworld.isDebug(),
+        null);
+  }
+
+  private static void registerDimension(
+      DimensionInfoData dimensionInfo, ServerLevel newLevel, boolean updateStorage) {
+    minecraftServer.levels.put(dimensionInfo.name(), newLevel);
+    dimensions.add(dimensionInfo);
+
+    if (updateStorage) {
+      DimensionDataStorage.get().addDimension(dimensionInfo);
+    }
   }
 
   public static boolean removeDimension(String name) {
@@ -146,6 +158,10 @@ public class DimensionManager {
       ServerLevel serverLevel = getServerLevel(levelKey);
       if (serverLevel != null) {
         minecraftServer.levels.remove(levelKey);
+
+        // Remove from persistent storage as well
+        DimensionDataStorage.get().removeDimension(dimensionInfoData);
+
         log.info("Removed dimension: {}", levelKey.location());
         return true;
       } else {
@@ -208,7 +224,7 @@ public class DimensionManager {
     var result = DimensionType.DIRECT_CODEC.parse(ops, element);
     if (result.result().isEmpty()) {
       throw new IllegalArgumentException(
-          "Fehler beim Parsen von DimensionType: " + result.error().get().message());
+          "Error parsing DimensionType: " + result.error().get().message());
     }
     return result.result().get();
   }
@@ -220,7 +236,7 @@ public class DimensionManager {
     var result = LevelStem.CODEC.parse(ops, element);
     if (result.result().isEmpty()) {
       throw new IllegalArgumentException(
-          "Fehler beim Parsen von LevelStem: " + result.error().get().message());
+          "Error parsing LevelStem: " + result.error().get().message());
     }
     return result.result().get();
   }
@@ -232,5 +248,12 @@ public class DimensionManager {
   public static void clear() {
     log.debug("Clearing all dimensions ...");
     dimensions.clear();
+  }
+
+  /** Clears all dimension cache data. Used when switching worlds to prevent data bleeding. */
+  public static void clearAllCache() {
+    log.info("Clearing dimension manager cache for world switch...");
+    dimensions.clear();
+    minecraftServer = null;
   }
 }

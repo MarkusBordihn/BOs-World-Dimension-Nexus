@@ -1,0 +1,23 @@
+{
+  "type": "lobby",
+  "custom_settings": {
+    "layers": [
+      {
+        "height": 1,
+        "block": "minecraft:barrier"
+      },
+      {
+        "height": 3,
+        "block": "minecraft:stone"
+      },
+      {
+        "height": 1,
+        "block": "minecraft:stone_bricks"
+      }
+    ],
+    "biome": "minecraft:plains",
+    "structures": [],
+    "lakes": false,
+    "spawn_structures": false
+  }
+}

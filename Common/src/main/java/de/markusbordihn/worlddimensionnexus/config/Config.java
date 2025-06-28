@@ -53,6 +53,7 @@ public class Config {
     log.info("Registering common configuration ...");
     PortalConfig.registerConfig();
     DimensionConfig.registerConfig();
+    TeleportConfig.registerConfig();
   }
 
   public static void registerClientConfig() {
@@ -64,18 +65,15 @@ public class Config {
   }
 
   public static void prepareConfiguration() {
-    // Validate game folder path.
     if (Constants.CONFIG_DIR != null) {
       configPath = Constants.CONFIG_DIR.resolve(Constants.MOD_ID);
       log.info("Updated configuration path to {}", configPath);
     }
 
-    // Validate configuration folder
     if (!configPath.toFile().exists()) {
       log.info("Creating configuration folder {}", getConfigDirectory());
     }
 
-    // Simple reload protection
     if (isLoaded) {
       log.error("Configuration is already loaded");
       log.warn("Check if configuration is loaded multiple times!");
