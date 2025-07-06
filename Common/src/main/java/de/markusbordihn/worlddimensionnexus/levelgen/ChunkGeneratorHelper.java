@@ -70,9 +70,9 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getCustomChunkGenerator(
       final MinecraftServer server, final ChunkGeneratorType type) {
-    Optional<WorldgenConfig> config = WorldgenConfigLoader.getConfig(type);
-    if (config.isPresent()) {
-      return createChunkGeneratorFromConfig(server, config.get());
+    Optional<WorldgenConfig> worldgenConfiguration = WorldgenConfigLoader.getConfig(type);
+    if (worldgenConfiguration.isPresent()) {
+      return createChunkGeneratorFromConfig(server, worldgenConfiguration.get());
     }
     return getFlatChunkGenerator(server);
   }

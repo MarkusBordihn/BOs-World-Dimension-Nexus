@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
@@ -119,7 +120,7 @@ public class DimensionManager {
   }
 
   public static ServerLevel addOrCreateDimension(final String dimensionName) {
-    return addOrCreateDimension(new DimensionInfoData(dimensionName), true);
+    return addOrCreateDimension(DimensionInfoData.fromDimensionName(dimensionName), true);
   }
 
   public static ServerLevel addOrCreateDimension(
@@ -131,7 +132,7 @@ public class DimensionManager {
 
     if (dimensions.contains(dimensionInfo)) {
       log.info("Dimension {} already exists, skipping ...", dimensionInfo);
-      return getServerLevel(dimensionInfo.name());
+      return getServerLevel(dimensionInfo.getDimensionKey());
     }
 
     return createNewDimension(dimensionInfo, updateStorage);
@@ -146,7 +147,7 @@ public class DimensionManager {
     ServerLevel newLevel = buildServerLevel(dimensionInfo, levelStem);
     registerDimension(dimensionInfo, newLevel, updateStorage);
 
-    log.info("Created and loaded new dimension: {}", dimensionInfo.name().location());
+    log.info("Created and loaded new dimension: {}", dimensionInfo.getDimensionKey().location());
     return newLevel;
   }
 
@@ -158,7 +159,7 @@ public class DimensionManager {
         minecraftServer.executor,
         minecraftServer.storageSource,
         (ServerLevelData) overworld.getLevelData(),
-        dimensionInfo.name(),
+        dimensionInfo.getDimensionKey(),
         levelStem,
         overworld.getChunkSource().chunkMap.progressListener,
         false,
@@ -170,7 +171,7 @@ public class DimensionManager {
 
   private static void registerDimension(
       final DimensionInfoData dimensionInfo, final ServerLevel newLevel, boolean updateStorage) {
-    minecraftServer.levels.put(dimensionInfo.name(), newLevel);
+    minecraftServer.levels.put(dimensionInfo.getDimensionKey(), newLevel);
     dimensions.add(dimensionInfo);
 
     if (dimensionInfo.requiresHotInjectionSync()) {
@@ -193,7 +194,7 @@ public class DimensionManager {
     }
 
     if (dimensions.remove(dimensionInfoData)) {
-      ResourceKey<Level> levelKey = dimensionInfoData.name();
+      ResourceKey<Level> levelKey = dimensionInfoData.getDimensionKey();
       ServerLevel serverLevel = getServerLevel(levelKey);
       if (serverLevel != null) {
         minecraftServer.levels.remove(levelKey);
@@ -226,7 +227,7 @@ public class DimensionManager {
 
   public static DimensionInfoData getDimensionInfoDataByModName(final String simpleName) {
     for (DimensionInfoData dimensionInfo : dimensions) {
-      ResourceLocation dimensionLocation = dimensionInfo.name().location();
+      ResourceLocation dimensionLocation = dimensionInfo.getDimensionKey().location();
       if (dimensionLocation.getNamespace().equals(Constants.MOD_ID)
           && dimensionLocation.getPath().equals(simpleName)) {
         return dimensionInfo;
@@ -237,7 +238,7 @@ public class DimensionManager {
 
   public static DimensionInfoData getDimensionInfoData(final ResourceLocation resourceLocation) {
     for (DimensionInfoData dimensionInfo : dimensions) {
-      if (dimensionInfo.name().location().equals(resourceLocation)) {
+      if (dimensionInfo.getDimensionKey().location().equals(resourceLocation)) {
         return dimensionInfo;
       }
     }
@@ -247,7 +248,7 @@ public class DimensionManager {
   public static ServerLevel getDimensionServerLevel(final String name) {
     DimensionInfoData dimensionInfo = getDimensionInfoData(name);
     if (dimensionInfo != null) {
-      return getServerLevel(dimensionInfo.name());
+      return getServerLevel(dimensionInfo.getDimensionKey());
     }
     log.warn("Dimension {} not found, returning null.", name);
     return null;
@@ -261,7 +262,7 @@ public class DimensionManager {
 
   public static DimensionInfoData getDimensionInfo(final ResourceKey<Level> levelKey) {
     for (DimensionInfoData dimensionInfo : dimensions) {
-      if (dimensionInfo.name().equals(levelKey)) {
+      if (dimensionInfo.getDimensionKey().equals(levelKey)) {
         return dimensionInfo;
       }
     }
@@ -270,7 +271,7 @@ public class DimensionManager {
 
   public static Collection<String> getDimensionNames() {
     return dimensions.stream()
-        .map(dimensionInfo -> dimensionInfo.name().location())
+        .map(dimensionInfo -> dimensionInfo.getDimensionKey().location())
         .filter(location -> location.getNamespace().equals(Constants.MOD_ID))
         .map(ResourceLocation::getPath)
         .toList();
@@ -345,6 +346,23 @@ public class DimensionManager {
       log.debug("Failed to parse dimension resource location: {}", dimension);
       return false;
     }
+  }
+
+  public static boolean setDimensionSpawnPoint(
+      final String dimensionName, final BlockPos spawnPoint) {
+    DimensionInfoData dimensionInfo = getDimensionInfoData(dimensionName);
+    if (dimensionInfo == null) {
+      return false;
+    }
+
+    DimensionInfoData updatedInfo = dimensionInfo.withSpawnPoint(spawnPoint);
+    dimensions.remove(dimensionInfo);
+    dimensions.add(updatedInfo);
+
+    // Update storage
+    DimensionDataStorage.get().addDimension(updatedInfo);
+
+    return true;
   }
 
   public static void clearAllCache() {

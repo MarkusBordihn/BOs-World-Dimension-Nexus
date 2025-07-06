@@ -48,4 +48,11 @@ public class PlayerEventHandler {
       PlayerEvents.handlePlayerPostTickEvent(serverPlayer);
     }
   }
+
+  @SubscribeEvent
+  public static void onPlayerChangeDimension(final PlayerEvent.PlayerChangedDimensionEvent event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerChangeDimensionEvent(serverPlayer, event.getFrom(), event.getTo());
+    }
+  }
 }

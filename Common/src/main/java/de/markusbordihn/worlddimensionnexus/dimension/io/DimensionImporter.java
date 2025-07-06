@@ -19,8 +19,12 @@
 
 package de.markusbordihn.worlddimensionnexus.dimension.io;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
+import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.io.File;
@@ -37,11 +41,16 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.LevelResource;
 
 public class DimensionImporter {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Importer");
+  private static final String DIMENSION_JSON_FILE = "dimension.json";
+  private static final String FILE_EXTENSION_PATTERN = "\\..*$";
+  private static final String TEMP_DIR_PREFIX = "import_dimension";
+  private static final String DIMENSIONS_DIR = "dimensions";
 
   public static boolean importDimension(
       final MinecraftServer minecraftServer,
@@ -49,24 +58,78 @@ public class DimensionImporter {
       final ResourceLocation dimensionId,
       final ResourceLocation dimensionTypeId)
       throws IOException {
-    Path tempDir = Files.createTempDirectory("import_dimension");
+    Path tempDir = Files.createTempDirectory(TEMP_DIR_PREFIX);
 
     try {
       extractZipFile(importFile, tempDir);
-      DimensionImportData importData =
-          extractDimensionInfo(importFile, tempDir, dimensionId, dimensionTypeId);
-      copyDimensionFiles(minecraftServer, tempDir, importData);
+      DimensionInfoData fileBasedDimensionInfo = readDimensionInfoFromFile(tempDir);
+
+      String finalDimensionName =
+          determineFinalDimensionName(
+              importFile,
+              fileBasedDimensionInfo,
+              dimensionId != null ? dimensionId.getPath() : null);
+
+      ChunkGeneratorType chunkGeneratorTypeOverride = null;
+      if (dimensionTypeId != null) {
+        try {
+          chunkGeneratorTypeOverride = ChunkGeneratorType.fromString(dimensionTypeId.getPath());
+        } catch (Exception e) {
+          log.warn("Could not convert dimension type '{}' to ChunkGeneratorType", dimensionTypeId);
+        }
+      }
+
+      ChunkGeneratorType finalChunkGeneratorType =
+          determineFinalChunkGeneratorType(fileBasedDimensionInfo, chunkGeneratorTypeOverride);
+
+      String fullDimensionName = Constants.MOD_ID + ":" + finalDimensionName;
+      if (dimensionExists(minecraftServer, fullDimensionName)) {
+        log.warn("Dimension '{}' already exists, import cancelled", fullDimensionName);
+        return false;
+      }
+
+      DimensionInfoData finalDimensionInfo =
+          createFinalDimensionInfo(
+              fileBasedDimensionInfo, finalDimensionName, finalChunkGeneratorType);
+
+      copyDimensionFiles(minecraftServer, tempDir, finalDimensionInfo);
+
+      // Register the imported dimension with the correct spawn point
+      ServerLevel importedLevel = DimensionManager.addOrCreateDimension(finalDimensionInfo, true);
+      if (importedLevel == null) {
+        log.warn("Failed to create dimension {}", finalDimensionInfo.getResourceLocation());
+        return false;
+      }
 
       log.info(
-          "Imported dimension {}:{} (type: {}) from {}",
-          importData.namespace,
-          importData.path,
-          importData.type,
-          importFile);
+          "Imported dimension {}:{} from {}",
+          finalDimensionInfo.namespace(),
+          finalDimensionInfo.path(),
+          importFile.getName());
       return true;
     } finally {
       cleanupTempDirectory(tempDir);
     }
+  }
+
+  public static boolean importDimension(
+      final MinecraftServer minecraftServer,
+      final File importFile,
+      final String dimensionNameOverride,
+      final ChunkGeneratorType chunkGeneratorTypeOverride)
+      throws IOException {
+    ResourceLocation dimensionId = null;
+    if (dimensionNameOverride != null && !dimensionNameOverride.trim().isEmpty()) {
+      dimensionId = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionNameOverride);
+    }
+
+    ResourceLocation dimensionTypeId = null;
+    if (chunkGeneratorTypeOverride != null) {
+      dimensionTypeId =
+          ResourceLocation.fromNamespaceAndPath("minecraft", chunkGeneratorTypeOverride.getName());
+    }
+
+    return importDimension(minecraftServer, importFile, dimensionId, dimensionTypeId);
   }
 
   private static void extractZipFile(final File importFile, final Path tempDir) throws IOException {
@@ -92,82 +155,36 @@ public class DimensionImporter {
     }
   }
 
-  private static DimensionImportData extractDimensionInfo(
-      final File importFile,
-      final Path tempDir,
-      final ResourceLocation dimensionId,
-      final ResourceLocation dimensionTypeId) {
-    // Default values
-    String namespace = Constants.MOD_ID;
-    String path = importFile.getName().replaceAll("\\..*$", "");
-    String type = "minecraft:overworld";
-
-    // Try reading dimension info from files
-    DimensionImportData fileData = readDimensionInfoFromFile(tempDir);
-    if (fileData != null) {
-      namespace = fileData.namespace;
-      path = fileData.path;
-      type = fileData.type;
-    }
-
-    // Override with command parameters if provided
-    if (dimensionId != null) {
-      namespace = dimensionId.getNamespace();
-      path = dimensionId.getPath();
-    }
-    if (dimensionTypeId != null) {
-      type = dimensionTypeId.toString();
-    }
-
-    return new DimensionImportData(namespace, path, type);
-  }
-
-  private static DimensionImportData readDimensionInfoFromFile(final Path tempDir) {
+  private static DimensionInfoData readDimensionInfoFromFile(final Path tempDir) {
     Path infoFile = findDimensionInfoFile(tempDir);
     if (infoFile == null) {
       return null;
     }
 
     try (Reader reader = Files.newBufferedReader(infoFile)) {
-      com.google.gson.JsonElement jsonElement = com.google.gson.JsonParser.parseReader(reader);
-      var result =
-          DimensionInfoData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, jsonElement);
-
-      if (result.result().isPresent()) {
-        DimensionInfoData info = result.result().get();
-        return new DimensionImportData(
-            info.name().location().getNamespace(),
-            info.name().location().getPath(),
-            info.type().location().toString());
+      JsonElement jsonElement = JsonParser.parseReader(reader);
+      if (jsonElement.isJsonObject()) {
+        return DimensionInfoData.fromJson(jsonElement.getAsJsonObject());
       }
     } catch (IOException e) {
       log.warn("Failed to read dimension info file: {}", e.getMessage());
+    } catch (Exception e) {
+      log.warn("Failed to parse dimension info JSON: {}", e.getMessage());
     }
     return null;
   }
 
   private static Path findDimensionInfoFile(final Path tempDir) {
-    Path infoFile = tempDir.resolve("dimension.info");
-    if (Files.exists(infoFile)) {
-      return infoFile;
-    }
-
-    infoFile = tempDir.resolve("dimension.json");
-    if (Files.exists(infoFile)) {
-      return infoFile;
-    }
-
-    return null;
+    Path infoFile = tempDir.resolve(DIMENSION_JSON_FILE);
+    return Files.exists(infoFile) ? infoFile : null;
   }
 
   private static void copyDimensionFiles(
-      final MinecraftServer minecraftServer,
-      final Path tempDir,
-      final DimensionImportData importData)
+      final MinecraftServer minecraftServer, final Path tempDir, final DimensionInfoData importData)
       throws IOException {
     Path worldDir = minecraftServer.getWorldPath(LevelResource.ROOT);
     Path targetDir =
-        worldDir.resolve("dimensions").resolve(importData.namespace).resolve(importData.path);
+        worldDir.resolve(DIMENSIONS_DIR).resolve(importData.namespace()).resolve(importData.path());
     Files.createDirectories(targetDir);
 
     try (Stream<Path> files = Files.walk(tempDir)) {
@@ -210,5 +227,72 @@ public class DimensionImporter {
     }
   }
 
-  private record DimensionImportData(String namespace, String path, String type) {}
+  private static String determineFinalDimensionName(
+      final File importFile,
+      final DimensionInfoData fileBasedDimensionInfo,
+      final String dimensionNameOverride) {
+
+    if (dimensionNameOverride != null && !dimensionNameOverride.trim().isEmpty()) {
+      return dimensionNameOverride;
+    }
+
+    if (fileBasedDimensionInfo != null
+        && fileBasedDimensionInfo.name() != null
+        && !fileBasedDimensionInfo.name().trim().isEmpty()) {
+      return fileBasedDimensionInfo.name();
+    }
+
+    if (fileBasedDimensionInfo != null
+        && fileBasedDimensionInfo.path() != null
+        && !fileBasedDimensionInfo.path().trim().isEmpty()) {
+      return fileBasedDimensionInfo.path();
+    }
+
+    return importFile.getName().replaceAll(FILE_EXTENSION_PATTERN, "");
+  }
+
+  private static ChunkGeneratorType determineFinalChunkGeneratorType(
+      final DimensionInfoData fileBasedDimensionInfo,
+      final ChunkGeneratorType chunkGeneratorTypeOverride) {
+
+    if (chunkGeneratorTypeOverride != null) {
+      return chunkGeneratorTypeOverride;
+    }
+
+    if (fileBasedDimensionInfo != null && fileBasedDimensionInfo.chunkGeneratorType() != null) {
+      return fileBasedDimensionInfo.chunkGeneratorType();
+    }
+
+    return DimensionInfoData.DEFAULT_CHUNK_GENERATOR_TYPE;
+  }
+
+  private static DimensionInfoData createFinalDimensionInfo(
+      final DimensionInfoData fileBasedDimensionInfo,
+      final String finalDimensionName,
+      final ChunkGeneratorType finalChunkGeneratorType) {
+
+    if (fileBasedDimensionInfo != null) {
+      return new DimensionInfoData(
+          Constants.MOD_ID,
+          finalDimensionName,
+          fileBasedDimensionInfo.type(),
+          finalDimensionName,
+          fileBasedDimensionInfo.description(),
+          fileBasedDimensionInfo.isCustom(),
+          finalChunkGeneratorType,
+          true,
+          fileBasedDimensionInfo.spawnPoint());
+    }
+
+    return DimensionInfoData.fromDimensionNameAndType(finalDimensionName, finalChunkGeneratorType);
+  }
+
+  private static boolean dimensionExists(final MinecraftServer server, final String dimensionName) {
+    try {
+      return DimensionManager.dimensionExists(server, dimensionName);
+    } catch (Exception e) {
+      log.warn("Error checking if dimension exists: {}", e.getMessage());
+      return false;
+    }
+  }
 }

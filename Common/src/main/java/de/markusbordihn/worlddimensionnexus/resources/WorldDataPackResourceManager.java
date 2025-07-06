@@ -55,9 +55,10 @@ public class WorldDataPackResourceManager {
     for (String resourcePath : worldDimensionFiles) {
       String fileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
       Path fileTarget = targetPath.resolve(fileName);
-      try (InputStream in = WorldDataPackResourceManager.class.getResourceAsStream(resourcePath)) {
-        if (in != null) {
-          Files.copy(in, fileTarget, StandardCopyOption.REPLACE_EXISTING);
+      try (InputStream inputStream =
+          WorldDataPackResourceManager.class.getResourceAsStream(resourcePath)) {
+        if (inputStream != null) {
+          Files.copy(inputStream, fileTarget, StandardCopyOption.REPLACE_EXISTING);
           log.info("Copied {} to {}", resourcePath, fileTarget);
         } else {
           log.warn("Resource {} not found in JAR!", resourcePath);

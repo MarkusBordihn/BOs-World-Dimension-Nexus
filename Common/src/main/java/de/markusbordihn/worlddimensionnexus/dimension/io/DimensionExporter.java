@@ -39,6 +39,11 @@ public class DimensionExporter {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Exporter");
 
+  private static final String DIMENSION_JSON_FILE = "dimension.json";
+  private static final String DIMENSIONS_DIR = "dimensions";
+  private static final String PATH_SEPARATOR = "/";
+  private static final String BACKSLASH_SEPARATOR = "\\";
+
   public static boolean exportDimension(
       final MinecraftServer minecraftServer, final ResourceKey<Level> dimension, File exportFile) {
     ResourceLocation resourceLocation = dimension.location();
@@ -51,12 +56,12 @@ public class DimensionExporter {
 
     // Validate dimension folder.
     Path worldDir = minecraftServer.getWorldPath(LevelResource.ROOT);
-    Path dimFolder =
+    Path dimensionFolder =
         worldDir
-            .resolve("dimensions")
+            .resolve(DIMENSIONS_DIR)
             .resolve(resourceLocation.getNamespace())
             .resolve(resourceLocation.getPath());
-    if (!Files.exists(dimFolder)) {
+    if (!Files.exists(dimensionFolder)) {
       log.error(
           "Dimension export failed: Dimension folder does not exist for dimension {}.",
           resourceLocation);
@@ -66,51 +71,22 @@ public class DimensionExporter {
     // Get Dimension info data, if available.
     DimensionInfoData dimensionInfoData = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfoData == null) {
-      log.warn(
-          "Dimension info data not found for dimension {}. Exporting without default info.",
-          resourceLocation);
+      dimensionInfoData =
+          DimensionInfoData.forImport(
+              resourceLocation.getNamespace(),
+              resourceLocation.getPath(),
+              DimensionInfoData.DEFAULT_TYPE);
+      log.info("Created default dimension info data for dimension {} export.", resourceLocation);
     }
 
     // Export dimension folder to wdn file.
     try {
       log.info("Exporting dimension {} ...", resourceLocation);
-      try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(exportFile))) {
-        zos.setLevel(Deflater.BEST_COMPRESSION);
-
-        // Add dimension info file, if available.
-        if (dimensionInfoData != null) {
-          zos.putNextEntry(new ZipEntry("dimension.info"));
-          DimensionInfoData info = new DimensionInfoData(resourceLocation.getPath());
-          var result =
-              DimensionInfoData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, info);
-          if (result.result().isPresent()) {
-            String json = result.result().get().toString();
-            zos.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-          }
-          zos.closeEntry();
-        }
-
-        // Add dimension files to the zip archive.
-        Files.walk(dimFolder)
-            .forEach(
-                path -> {
-                  if (!Files.isRegularFile(path)
-                      || DimensionIOUtils.shouldSkipFile(dimFolder.relativize(path))) {
-                    return;
-                  }
-                  String entryName = dimFolder.relativize(path).toString().replace("\\", "/");
-                  try (InputStream is = Files.newInputStream(path)) {
-                    zos.putNextEntry(new ZipEntry(entryName));
-                    is.transferTo(zos);
-                    zos.closeEntry();
-                  } catch (IOException e) {
-                    log.error(
-                        "Failed to add file {} to export zip for dimension {}: {}",
-                        path,
-                        resourceLocation,
-                        e);
-                  }
-                });
+      try (ZipOutputStream zipOutputStream =
+          new ZipOutputStream(new FileOutputStream(exportFile))) {
+        zipOutputStream.setLevel(Deflater.BEST_COMPRESSION);
+        addDimensionInfoToZip(zipOutputStream, dimensionInfoData);
+        addDimensionFilesToZip(zipOutputStream, dimensionFolder, resourceLocation);
       }
       log.info("Dimension {} exported successfully to {}.", resourceLocation, exportFile);
       return true;
@@ -118,5 +94,45 @@ public class DimensionExporter {
       log.error("Failed to export dimension {} to {}: {}", resourceLocation, exportFile, e);
       return false;
     }
+  }
+
+  private static void addDimensionInfoToZip(
+      final ZipOutputStream zipOutputStream, final DimensionInfoData dimensionInfoData)
+      throws IOException {
+    zipOutputStream.putNextEntry(new ZipEntry(DIMENSION_JSON_FILE));
+    String jsonContent = dimensionInfoData.toJson().toString();
+    zipOutputStream.write(jsonContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    zipOutputStream.closeEntry();
+  }
+
+  private static void addDimensionFilesToZip(
+      final ZipOutputStream zipOutputStream,
+      final Path dimensionFolder,
+      final ResourceLocation resourceLocation)
+      throws IOException {
+    Files.walk(dimensionFolder)
+        .forEach(
+            filePath -> {
+              if (!Files.isRegularFile(filePath)
+                  || DimensionIOUtils.shouldSkipFile(dimensionFolder.relativize(filePath))) {
+                return;
+              }
+              String zipEntryName =
+                  dimensionFolder
+                      .relativize(filePath)
+                      .toString()
+                      .replace(BACKSLASH_SEPARATOR, PATH_SEPARATOR);
+              try (InputStream inputStream = Files.newInputStream(filePath)) {
+                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName));
+                inputStream.transferTo(zipOutputStream);
+                zipOutputStream.closeEntry();
+              } catch (IOException e) {
+                log.error(
+                    "Failed to add file {} to export zip for dimension {}: {}",
+                    filePath,
+                    resourceLocation,
+                    e);
+              }
+            });
   }
 }

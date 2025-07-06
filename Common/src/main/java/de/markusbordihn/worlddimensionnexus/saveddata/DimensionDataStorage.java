@@ -98,9 +98,11 @@ public class DimensionDataStorage extends SavedData {
     boolean removed = this.dimensionList.remove(dimensionInfoData);
     if (removed) {
       this.setDirty();
-      log.info("Removed dimension from storage: {}", dimensionInfoData.name().location());
+      log.info(
+          "Removed dimension from storage: {}", dimensionInfoData.getDimensionKey().location());
     } else {
-      log.warn("Dimension not found in storage: {}", dimensionInfoData.name().location());
+      log.warn(
+          "Dimension not found in storage: {}", dimensionInfoData.getDimensionKey().location());
     }
     return removed;
   }
@@ -108,8 +110,8 @@ public class DimensionDataStorage extends SavedData {
   public boolean removeDimensionByName(final String name) {
     DimensionInfoData toRemove = null;
     for (DimensionInfoData dimension : this.dimensionList) {
-      if (dimension.name().location().getNamespace().equals(Constants.MOD_ID)
-          && dimension.name().location().getPath().equals(name)) {
+      if (dimension.getDimensionKey().location().getNamespace().equals(Constants.MOD_ID)
+          && dimension.getDimensionKey().location().getPath().equals(name)) {
         toRemove = dimension;
         break;
       }

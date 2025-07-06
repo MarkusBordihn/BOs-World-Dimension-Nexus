@@ -19,22 +19,25 @@
 
 package de.markusbordihn.worlddimensionnexus.server.commands;
 
-import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.AutoTeleportTriggerSuggestion;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
 import java.util.Collection;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.phys.Vec3;
 
 public class AutoTeleportCommand extends Command {
 
@@ -47,16 +50,7 @@ public class AutoTeleportCommand extends Command {
             Commands.literal("add")
                 .then(
                     Commands.argument("trigger", StringArgumentType.string())
-                        .suggests(
-                            (context, builder) -> {
-                              builder.suggest("always");
-                              builder.suggest("daily");
-                              builder.suggest("weekly");
-                              builder.suggest("monthly");
-                              builder.suggest("join");
-                              builder.suggest("restart");
-                              return builder.buildFuture();
-                            })
+                        .suggests(AutoTeleportTriggerSuggestion.AUTO_TELEPORT_TRIGGERS)
                         .then(
                             Commands.argument("dimension", StringArgumentType.greedyString())
                                 .suggests(
@@ -87,40 +81,22 @@ public class AutoTeleportCommand extends Command {
                                             StringArgumentType.getString(context, "trigger"),
                                             StringArgumentType.getString(context, "dimension")))
                                 .then(
-                                    Commands.argument("x", DoubleArgumentType.doubleArg())
-                                        .then(
-                                            Commands.argument("y", DoubleArgumentType.doubleArg())
-                                                .then(
-                                                    Commands.argument(
-                                                            "z", DoubleArgumentType.doubleArg())
-                                                        .executes(
-                                                            context ->
-                                                                addAutoTeleportWithCoords(
-                                                                    context.getSource(),
-                                                                    StringArgumentType.getString(
-                                                                        context, "trigger"),
-                                                                    StringArgumentType.getString(
-                                                                        context, "dimension"),
-                                                                    DoubleArgumentType.getDouble(
-                                                                        context, "x"),
-                                                                    DoubleArgumentType.getDouble(
-                                                                        context, "y"),
-                                                                    DoubleArgumentType.getDouble(
-                                                                        context, "z")))))))))
+                                    Commands.argument("position", BlockPosArgument.blockPos())
+                                        .executes(
+                                            context ->
+                                                addAutoTeleportWithCoords(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(
+                                                        context, "trigger"),
+                                                    StringArgumentType.getString(
+                                                        context, "dimension"),
+                                                    BlockPosArgument.getBlockPos(
+                                                        context, "position")))))))
         .then(
             Commands.literal("remove")
                 .then(
                     Commands.argument("trigger", StringArgumentType.string())
-                        .suggests(
-                            (context, builder) -> {
-                              builder.suggest("always");
-                              builder.suggest("daily");
-                              builder.suggest("weekly");
-                              builder.suggest("monthly");
-                              builder.suggest("join");
-                              builder.suggest("restart");
-                              return builder.buildFuture();
-                            })
+                        .suggests(AutoTeleportTriggerSuggestion::suggestExistingTriggers)
                         .executes(
                             context ->
                                 removeAutoTeleport(
@@ -133,72 +109,59 @@ public class AutoTeleportCommand extends Command {
 
   private static int addAutoTeleportWithSpawn(
       final CommandSourceStack source, final String triggerString, final String dimension) {
-    AutoTeleportTrigger trigger = parseTrigger(triggerString);
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
     if (trigger == null) {
       return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
     MinecraftServer server = source.getServer();
 
     // Determine spawn coordinates based on dimension type
-    double spawnX = 0.0;
-    double spawnY = 100.0;
-    double spawnZ = 0.0;
+    Vec3 spawnPosition = new Vec3(0.0, 100.0, 0.0); // Default position
     try {
       switch (dimension) {
         case "minecraft:overworld" -> {
           var overworld = server.overworld();
           var spawnPos = overworld.getSharedSpawnPos();
-          spawnX = spawnPos.getX();
-          spawnY = spawnPos.getY();
-          spawnZ = spawnPos.getZ();
+          spawnPosition = new Vec3(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
         }
-        case "minecraft:nether" -> {
-          spawnX = 0.0;
-          spawnY = 64.0;
-          spawnZ = 0.0;
-        }
-        case "minecraft:the_end" -> {
-          spawnX = 100.0;
-          spawnY = 50.0;
-          spawnZ = 0.0;
-        }
+        case "minecraft:nether" -> spawnPosition = new Vec3(0.0, 64.0, 0.0);
+        case "minecraft:the_end" -> spawnPosition = new Vec3(100.0, 50.0, 0.0);
       }
     } catch (Exception e) {
       // Fall back to default coordinates if spawn detection fails
     }
 
-    return addAutoTeleport(source, trigger, dimension, spawnX, spawnY, spawnZ, true);
+    return addAutoTeleport(source, trigger, dimension, spawnPosition, true);
   }
 
   private static int addAutoTeleportWithCoords(
       final CommandSourceStack source,
       final String triggerString,
       final String dimension,
-      final double x,
-      final double y,
-      final double z) {
-    AutoTeleportTrigger trigger = parseTrigger(triggerString);
+      final BlockPos position) {
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
     if (trigger == null) {
       return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
 
-    return addAutoTeleport(source, trigger, dimension, x, y, z, false);
+    Vec3 targetPosition = new Vec3(position.getX(), position.getY(), position.getZ());
+    return addAutoTeleport(source, trigger, dimension, targetPosition, false);
   }
 
   private static int addAutoTeleport(
       final CommandSourceStack source,
       final AutoTeleportTrigger trigger,
       final String dimension,
-      final double x,
-      final double y,
-      final double z,
+      final Vec3 position,
       final boolean isSpawn) {
     MinecraftServer server = source.getServer();
     if (!DimensionManager.dimensionExists(server, dimension)) {
       return sendFailureMessage(source, "Dimension '" + dimension + "' does not exist!");
     }
 
-    AutoTeleportManager.addGlobalAutoTeleport(server.overworld(), trigger, dimension, x, y, z);
+    AutoTeleportManager.addGlobalAutoTeleport(server.overworld(), trigger, dimension, position);
     MutableComponent message =
         Component.literal("Added auto-teleport rule for all players:")
             .withStyle(ChatFormatting.GREEN)
@@ -211,7 +174,8 @@ public class AutoTeleportCommand extends Command {
       message.append(Component.literal(" (spawn point)").withStyle(ChatFormatting.YELLOW));
     } else {
       message.append(
-          Component.literal(String.format(" at %.1f, %.1f, %.1f", x, y, z))
+          Component.literal(
+                  String.format(" at %.1f, %.1f, %.1f", position.x, position.y, position.z))
               .withStyle(ChatFormatting.AQUA));
     }
 
@@ -220,7 +184,8 @@ public class AutoTeleportCommand extends Command {
 
   private static int removeAutoTeleport(
       final CommandSourceStack source, final String triggerString) {
-    AutoTeleportTrigger trigger = parseTrigger(triggerString);
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
     if (trigger == null) {
       return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
@@ -263,17 +228,5 @@ public class AutoTeleportCommand extends Command {
     MinecraftServer server = source.getServer();
     AutoTeleportManager.clearAllGlobalAutoTeleports(server.overworld());
     return sendSuccessMessage(source, "Cleared all auto-teleport rules for all players.");
-  }
-
-  private static AutoTeleportTrigger parseTrigger(final String triggerString) {
-    return switch (triggerString.toLowerCase()) {
-      case "always" -> AutoTeleportTrigger.ALWAYS;
-      case "daily" -> AutoTeleportTrigger.ONCE_PER_DAY;
-      case "weekly" -> AutoTeleportTrigger.ONCE_PER_WEEK;
-      case "monthly" -> AutoTeleportTrigger.ONCE_PER_MONTH;
-      case "join" -> AutoTeleportTrigger.ONCE_PER_SERVER_JOIN;
-      case "restart" -> AutoTeleportTrigger.ONCE_AFTER_SERVER_RESTART;
-      default -> null;
-    };
   }
 }

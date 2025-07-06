@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public class AutoTeleportManager {
 
@@ -123,9 +124,7 @@ public class AutoTeleportManager {
       final ServerLevel level,
       final AutoTeleportTrigger trigger,
       final String targetDimension,
-      final double x,
-      final double y,
-      final double z) {
+      final Vec3 position) {
     if (level == null) {
       log.error("Cannot add auto-teleport rule: ServerLevel is null");
       return;
@@ -136,16 +135,17 @@ public class AutoTeleportManager {
       return;
     }
 
-    AutoTeleportEntry entry = new AutoTeleportEntry(targetDimension, x, y, z, trigger);
+    AutoTeleportEntry entry = new AutoTeleportEntry(targetDimension, position, trigger);
     globalRules.put(trigger, entry);
     AutoTeleportDataStorage.get(level).setGlobalAutoTeleportRule(entry);
+
     log.info(
-        "Added global auto-teleport rule: {} -> {} at {}, {}, {}",
+        "Added global auto-teleport rule: {} -> {} at {:.1f}, {:.1f}, {:.1f}",
         trigger,
         targetDimension,
-        x,
-        y,
-        z);
+        position.x,
+        position.y,
+        position.z);
   }
 
   public static boolean removeGlobalAutoTeleport(
@@ -167,9 +167,9 @@ public class AutoTeleportManager {
           String.format(
               "%s at %.1f, %.1f, %.1f",
               teleportEntry.targetDimension(),
-              teleportEntry.x(),
-              teleportEntry.y(),
-              teleportEntry.z());
+              teleportEntry.position().x,
+              teleportEntry.position().y,
+              teleportEntry.position().z);
       rules.put(entry.getKey(), destination);
     }
     return rules;

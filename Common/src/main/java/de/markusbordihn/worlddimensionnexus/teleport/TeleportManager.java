@@ -211,21 +211,36 @@ public class TeleportManager {
       final ServerPlayer serverPlayer, final ServerLevel targetLevel, final String dimensionName) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfoData(dimensionName);
 
+    // First check if dimension has a custom spawn point set
+    if (dimensionInfo != null && dimensionInfo.spawnPoint() != null) {
+      BlockPos customSpawn = dimensionInfo.spawnPoint();
+      if (isSafeLocation(targetLevel, customSpawn)) {
+        return customSpawn;
+      } else {
+        // If custom spawn is not safe, try to find a safe location near it
+        return findSafeLocationNear(targetLevel, customSpawn);
+      }
+    }
+
+    // Fallback to existing logic for special dimension types
     if (dimensionInfo != null
         && dimensionInfo.chunkGeneratorType() == ChunkGeneratorType.SKYBLOCK) {
       return getSkyblockSpawnLocation();
     }
 
+    // Try player spawn in dimension
     BlockPos playerSpawn = getPlayerSpawnInDimension(serverPlayer, targetLevel);
     if (playerSpawn != null) {
       return playerSpawn;
     }
 
+    // Try world spawn
     BlockPos worldSpawn = targetLevel.getSharedSpawnPos();
     if (isSafeLocation(targetLevel, worldSpawn)) {
       return worldSpawn;
     }
 
+    // Last resort: find safe location near origin
     return findSafeLocationNear(targetLevel, new BlockPos(0, 64, 0));
   }
 

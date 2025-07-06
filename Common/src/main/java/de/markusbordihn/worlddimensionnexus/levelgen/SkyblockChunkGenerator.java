@@ -142,15 +142,16 @@ public class SkyblockChunkGenerator extends ChunkGenerator {
   }
 
   private void generateSpawnIsland(final ChunkAccess chunk) {
-    Optional<WorldgenConfig> config = WorldgenConfigLoader.getConfig(ChunkGeneratorType.SKYBLOCK);
+    Optional<WorldgenConfig> worldgenConfiguration =
+        WorldgenConfigLoader.getConfig(ChunkGeneratorType.SKYBLOCK);
 
     int centerX = 8;
     int centerZ = 8;
 
     generateIslandBase(chunk, centerX, centerZ);
 
-    config.ifPresent(
-        worldgenConfig -> generateConfiguredFeatures(chunk, centerX, centerZ, worldgenConfig));
+    worldgenConfiguration.ifPresent(
+        configuration -> generateConfiguredFeatures(chunk, centerX, centerZ, configuration));
   }
 
   private void generateIslandBase(final ChunkAccess chunk, final int centerX, final int centerZ) {

@@ -21,9 +21,10 @@ package de.markusbordihn.worlddimensionnexus.data.teleport;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.phys.Vec3;
 
 public record AutoTeleportEntry(
-    String targetDimension, double x, double y, double z, AutoTeleportTrigger trigger) {
+    String targetDimension, Vec3 position, AutoTeleportTrigger trigger) {
 
   public static final Codec<AutoTeleportEntry> CODEC =
       RecordCodecBuilder.create(
@@ -33,9 +34,7 @@ public record AutoTeleportEntry(
                       Codec.STRING
                           .fieldOf("targetDimension")
                           .forGetter(AutoTeleportEntry::targetDimension),
-                      Codec.DOUBLE.fieldOf("x").forGetter(AutoTeleportEntry::x),
-                      Codec.DOUBLE.fieldOf("y").forGetter(AutoTeleportEntry::y),
-                      Codec.DOUBLE.fieldOf("z").forGetter(AutoTeleportEntry::z),
+                      Vec3.CODEC.fieldOf("position").forGetter(AutoTeleportEntry::position),
                       AutoTeleportTrigger.CODEC
                           .fieldOf("trigger")
                           .forGetter(AutoTeleportEntry::trigger))
