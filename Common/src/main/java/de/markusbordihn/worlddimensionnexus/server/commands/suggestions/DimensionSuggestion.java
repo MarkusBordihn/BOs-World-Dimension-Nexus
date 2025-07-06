@@ -30,8 +30,7 @@ public class DimensionSuggestion {
 
   public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
       (context, builder) ->
-          SharedSuggestionProvider.suggest(
-              DimensionManager.getDimensionNames(context.getSource().getServer()), builder);
+          SharedSuggestionProvider.suggest(DimensionManager.getDimensionNames(), builder);
 
   public static final SuggestionProvider<CommandSourceStack> ALL_DIMENSIONS =
       (context, builder) -> {

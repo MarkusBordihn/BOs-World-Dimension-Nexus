@@ -26,7 +26,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportCooldownManager;
-import de.markusbordihn.worlddimensionnexus.utils.TeleportHelper;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -59,14 +59,12 @@ public class TeleportCommand extends Command {
                         .executes(TeleportCommand::teleportPlayerBack)));
   }
 
-  private static int teleportToDimension(CommandContext<CommandSourceStack> context)
+  private static int teleportToDimension(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
     String dimensionName = StringArgumentType.getString(context, "name");
     ServerPlayer player = context.getSource().getPlayerOrException();
 
-    boolean success = TeleportHelper.safeTeleportToDimension(player, dimensionName);
-
-    if (success) {
+    if (TeleportManager.safeTeleportToDimension(player, dimensionName)) {
       return sendSuccessMessage(
           context.getSource(),
           Component.literal("Teleported to dimension ")
@@ -84,14 +82,12 @@ public class TeleportCommand extends Command {
     }
   }
 
-  private static int teleportPlayerToDimension(CommandContext<CommandSourceStack> context)
+  private static int teleportPlayerToDimension(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
     String dimensionName = StringArgumentType.getString(context, "name");
     ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
 
-    boolean success = TeleportHelper.safeTeleportToDimension(targetPlayer, dimensionName);
-
-    if (success) {
+    if (TeleportManager.safeTeleportToDimension(targetPlayer, dimensionName)) {
       return sendSuccessMessage(
           context.getSource(),
           Component.literal("Teleported ")
@@ -114,7 +110,7 @@ public class TeleportCommand extends Command {
     }
   }
 
-  private static int teleportBack(CommandContext<CommandSourceStack> context)
+  private static int teleportBack(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
     ServerPlayer player = context.getSource().getPlayerOrException();
 
@@ -135,9 +131,7 @@ public class TeleportCommand extends Command {
       }
     }
 
-    boolean success = TeleportHelper.teleportBack(player);
-
-    if (success) {
+    if (TeleportManager.teleportBack(player)) {
       // Record cooldown only for non-moderator players
       if (!context.getSource().hasPermission(Commands.LEVEL_MODERATORS)) {
         TeleportCooldownManager.recordBackTeleport(player);
@@ -155,13 +149,11 @@ public class TeleportCommand extends Command {
     }
   }
 
-  private static int teleportPlayerBack(CommandContext<CommandSourceStack> context)
+  private static int teleportPlayerBack(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
     ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
 
-    boolean success = TeleportHelper.teleportBack(targetPlayer);
-
-    if (success) {
+    if (TeleportManager.teleportBack(targetPlayer)) {
       return sendSuccessMessage(
           context.getSource(),
           Component.literal("Teleported ")

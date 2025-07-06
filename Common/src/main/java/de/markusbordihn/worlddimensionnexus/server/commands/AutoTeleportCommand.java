@@ -22,6 +22,7 @@ package de.markusbordihn.worlddimensionnexus.server.commands;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
@@ -35,16 +36,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 
-/** Commands for managing auto-teleport rules that apply to all players. */
 public class AutoTeleportCommand extends Command {
 
   private AutoTeleportCommand() {}
 
-  /**
-   * Registers the auto-teleport command with all its subcommands.
-   *
-   * @return the command builder for the auto-teleport command
-   */
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
     return Commands.literal("autoteleport")
         .requires(cs -> cs.hasPermission(2))
@@ -71,23 +66,20 @@ public class AutoTeleportCommand extends Command {
                                       builder.suggest("minecraft:nether");
                                       builder.suggest("minecraft:the_end");
 
-                                      // Add custom dimensions with proper validation
                                       MinecraftServer server = context.getSource().getServer();
                                       if (server != null) {
                                         Collection<String> customDimensions =
-                                            DimensionManager.getDimensionNames(server);
+                                            DimensionManager.getDimensionNames();
                                         for (String dimensionName : customDimensions) {
-                                          // Validate dimension name for command usage
                                           if (dimensionName != null
                                               && !dimensionName.trim().isEmpty()
                                               && dimensionName.matches("[a-z0-9_.-]+")) {
-                                            builder.suggest("worlddimensionnexus:" + dimensionName);
+                                            builder.suggest(Constants.MOD_ID + ":" + dimensionName);
                                           }
                                         }
                                       }
                                       return builder.buildFuture();
                                     })
-                                // Execute with dimension only (use spawn point)
                                 .executes(
                                     context ->
                                         addAutoTeleportWithSpawn(
@@ -101,7 +93,6 @@ public class AutoTeleportCommand extends Command {
                                                 .then(
                                                     Commands.argument(
                                                             "z", DoubleArgumentType.doubleArg())
-                                                        // Execute with coordinates
                                                         .executes(
                                                             context ->
                                                                 addAutoTeleportWithCoords(
@@ -140,52 +131,38 @@ public class AutoTeleportCommand extends Command {
             Commands.literal("clear").executes(context -> clearAutoTeleports(context.getSource())));
   }
 
-  /**
-   * Adds an auto-teleport rule using the dimension's spawn point. When no coordinates are
-   * specified, uses appropriate spawn coordinates based on dimension type.
-   *
-   * @param source the command source
-   * @param triggerString the trigger string
-   * @param dimension the target dimension
-   * @return command result (1 for success, 0 for failure)
-   */
   private static int addAutoTeleportWithSpawn(
-      CommandSourceStack source, String triggerString, String dimension) {
+      final CommandSourceStack source, final String triggerString, final String dimension) {
     AutoTeleportTrigger trigger = parseTrigger(triggerString);
     if (trigger == null) {
-      source.sendFailure(
-          Component.literal("Invalid trigger: " + triggerString).withStyle(ChatFormatting.RED));
-      return 0;
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
-
     MinecraftServer server = source.getServer();
-    if (server == null) {
-      source.sendFailure(Component.literal("Server not available").withStyle(ChatFormatting.RED));
-      return 0;
-    }
 
     // Determine spawn coordinates based on dimension type
     double spawnX = 0.0;
     double spawnY = 100.0;
     double spawnZ = 0.0;
-
     try {
-      if (dimension.equals("minecraft:overworld")) {
-        var overworld = server.overworld();
-        var spawnPos = overworld.getSharedSpawnPos();
-        spawnX = spawnPos.getX();
-        spawnY = spawnPos.getY();
-        spawnZ = spawnPos.getZ();
-      } else if (dimension.equals("minecraft:nether")) {
-        spawnX = 0.0;
-        spawnY = 64.0;
-        spawnZ = 0.0;
-      } else if (dimension.equals("minecraft:the_end")) {
-        spawnX = 100.0;
-        spawnY = 50.0;
-        spawnZ = 0.0;
+      switch (dimension) {
+        case "minecraft:overworld" -> {
+          var overworld = server.overworld();
+          var spawnPos = overworld.getSharedSpawnPos();
+          spawnX = spawnPos.getX();
+          spawnY = spawnPos.getY();
+          spawnZ = spawnPos.getZ();
+        }
+        case "minecraft:nether" -> {
+          spawnX = 0.0;
+          spawnY = 64.0;
+          spawnZ = 0.0;
+        }
+        case "minecraft:the_end" -> {
+          spawnX = 100.0;
+          spawnY = 50.0;
+          spawnZ = 0.0;
+        }
       }
-      // For custom dimensions, use default safe coordinates (0, 100, 0)
     } catch (Exception e) {
       // Fall back to default coordinates if spawn detection fails
     }
@@ -193,65 +170,35 @@ public class AutoTeleportCommand extends Command {
     return addAutoTeleport(source, trigger, dimension, spawnX, spawnY, spawnZ, true);
   }
 
-  /**
-   * Adds an auto-teleport rule with user-specified coordinates.
-   *
-   * @param source the command source
-   * @param triggerString the trigger string
-   * @param dimension the target dimension
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
-   * @return command result (1 for success, 0 for failure)
-   */
   private static int addAutoTeleportWithCoords(
-      CommandSourceStack source,
-      String triggerString,
-      String dimension,
-      double x,
-      double y,
-      double z) {
+      final CommandSourceStack source,
+      final String triggerString,
+      final String dimension,
+      final double x,
+      final double y,
+      final double z) {
     AutoTeleportTrigger trigger = parseTrigger(triggerString);
     if (trigger == null) {
-      source.sendFailure(
-          Component.literal("Invalid trigger: " + triggerString).withStyle(ChatFormatting.RED));
-      return 0;
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
 
     return addAutoTeleport(source, trigger, dimension, x, y, z, false);
   }
 
-  /**
-   * Internal method to add an auto-teleport rule with specified parameters. Handles rule creation
-   * and provides feedback to the command sender.
-   *
-   * @param source the command source
-   * @param trigger the teleport trigger type
-   * @param dimension the target dimension identifier
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
-   * @param isSpawn whether the coordinates represent a spawn point
-   * @return command result (1 for success, 0 for failure)
-   */
   private static int addAutoTeleport(
-      CommandSourceStack source,
-      AutoTeleportTrigger trigger,
-      String dimension,
-      double x,
-      double y,
-      double z,
-      boolean isSpawn) {
-
+      final CommandSourceStack source,
+      final AutoTeleportTrigger trigger,
+      final String dimension,
+      final double x,
+      final double y,
+      final double z,
+      final boolean isSpawn) {
     MinecraftServer server = source.getServer();
-    if (server == null) {
-      source.sendFailure(Component.literal("Server not available").withStyle(ChatFormatting.RED));
-      return 0;
+    if (!DimensionManager.dimensionExists(server, dimension)) {
+      return sendFailureMessage(source, "Dimension '" + dimension + "' does not exist!");
     }
 
     AutoTeleportManager.addGlobalAutoTeleport(server.overworld(), trigger, dimension, x, y, z);
-
-    // Build success message with appropriate formatting
     MutableComponent message =
         Component.literal("Added auto-teleport rule for all players:")
             .withStyle(ChatFormatting.GREEN)
@@ -268,65 +215,33 @@ public class AutoTeleportCommand extends Command {
               .withStyle(ChatFormatting.AQUA));
     }
 
-    source.sendSuccess(() -> message, true);
-    return 1;
+    return sendSuccessMessage(source, message);
   }
 
-  /**
-   * Removes an existing auto-teleport rule for the specified trigger.
-   *
-   * @param source the command source
-   * @param triggerString the trigger string
-   * @return command result (1 for success, 0 for failure)
-   */
-  private static int removeAutoTeleport(CommandSourceStack source, String triggerString) {
+  private static int removeAutoTeleport(
+      final CommandSourceStack source, final String triggerString) {
     AutoTeleportTrigger trigger = parseTrigger(triggerString);
     if (trigger == null) {
-      source.sendFailure(
-          Component.literal("Invalid trigger: " + triggerString).withStyle(ChatFormatting.RED));
-      return 0;
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
-
     MinecraftServer server = source.getServer();
-    if (server == null) {
-      source.sendFailure(Component.literal("Server not available").withStyle(ChatFormatting.RED));
-      return 0;
-    }
 
+    // Attempt to remove the auto-teleport rule
     boolean removed = AutoTeleportManager.removeGlobalAutoTeleport(server.overworld(), trigger);
-
     if (removed) {
-      source.sendSuccess(
-          () ->
-              Component.literal("Removed auto-teleport rule for trigger: " + triggerString)
-                  .withStyle(ChatFormatting.GREEN),
-          true);
-      return 1;
+      return sendSuccessMessage(source, "Removed auto-teleport rule for trigger: " + triggerString);
     } else {
-      source.sendFailure(
-          Component.literal("No auto-teleport rule found for trigger: " + triggerString)
-              .withStyle(ChatFormatting.RED));
-      return 0;
+      return sendFailureMessage(
+          source, "No auto-teleport rule found for trigger: " + triggerString);
     }
   }
 
-  /**
-   * Lists all currently configured auto-teleport rules. Shows appropriate message if no rules are
-   * configured.
-   *
-   * @param source the command source
-   * @return command result (always 1)
-   */
-  private static int listAutoTeleports(CommandSourceStack source) {
+  private static int listAutoTeleports(final CommandSourceStack source) {
     Map<AutoTeleportTrigger, String> rules = AutoTeleportManager.getGlobalAutoTeleportRules();
 
     if (rules.isEmpty()) {
-      source.sendSuccess(
-          () ->
-              Component.literal("No auto-teleport rules configured.")
-                  .withStyle(ChatFormatting.YELLOW),
-          false);
-      return 1;
+      return sendSuccessMessage(
+          source, "No auto-teleport rules configured.", ChatFormatting.YELLOW);
     }
 
     MutableComponent message =
@@ -341,40 +256,16 @@ public class AutoTeleportCommand extends Command {
     }
 
     source.sendSuccess(() -> message, false);
-    return 1;
+    return SINGLE_SUCCESS;
   }
 
-  /**
-   * Clears all configured auto-teleport rules. Removes all global auto-teleport rules, effectively
-   * disabling automatic teleportation.
-   *
-   * @param source the command source
-   * @return command result (1 for success, 0 for failure)
-   */
-  private static int clearAutoTeleports(CommandSourceStack source) {
+  private static int clearAutoTeleports(final CommandSourceStack source) {
     MinecraftServer server = source.getServer();
-    if (server == null) {
-      source.sendFailure(Component.literal("Server not available").withStyle(ChatFormatting.RED));
-      return 0;
-    }
-
     AutoTeleportManager.clearAllGlobalAutoTeleports(server.overworld());
-    source.sendSuccess(
-        () ->
-            Component.literal("Cleared all auto-teleport rules for all players.")
-                .withStyle(ChatFormatting.GREEN),
-        true);
-    return 1;
+    return sendSuccessMessage(source, "Cleared all auto-teleport rules for all players.");
   }
 
-  /**
-   * Parses a trigger string into an AutoTeleportTrigger enum value. Supports case-insensitive
-   * matching for better user experience.
-   *
-   * @param triggerString the trigger string to parse
-   * @return the corresponding AutoTeleportTrigger, or null if the string is invalid
-   */
-  private static AutoTeleportTrigger parseTrigger(String triggerString) {
+  private static AutoTeleportTrigger parseTrigger(final String triggerString) {
     return switch (triggerString.toLowerCase()) {
       case "always" -> AutoTeleportTrigger.ALWAYS;
       case "daily" -> AutoTeleportTrigger.ONCE_PER_DAY;

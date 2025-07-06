@@ -37,11 +37,11 @@ public enum ChunkGeneratorType {
       Codec.STRING.xmap(ChunkGeneratorType::fromString, ChunkGeneratorType::getName);
   private final String name;
 
-  ChunkGeneratorType(String name) {
+  ChunkGeneratorType(final String name) {
     this.name = name;
   }
 
-  public static ChunkGeneratorType fromString(String name) {
+  public static ChunkGeneratorType fromString(final String name) {
     for (ChunkGeneratorType type : values()) {
       if (type.name.equalsIgnoreCase(name)) {
         return type;

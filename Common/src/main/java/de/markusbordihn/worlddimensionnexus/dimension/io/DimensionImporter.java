@@ -44,10 +44,10 @@ public class DimensionImporter {
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Importer");
 
   public static boolean importDimension(
-      MinecraftServer minecraftServer,
-      File importFile,
-      ResourceLocation dimensionId,
-      ResourceLocation dimensionTypeId)
+      final MinecraftServer minecraftServer,
+      final File importFile,
+      final ResourceLocation dimensionId,
+      final ResourceLocation dimensionTypeId)
       throws IOException {
     Path tempDir = Files.createTempDirectory("import_dimension");
 
@@ -69,7 +69,7 @@ public class DimensionImporter {
     }
   }
 
-  private static void extractZipFile(File importFile, Path tempDir) throws IOException {
+  private static void extractZipFile(final File importFile, final Path tempDir) throws IOException {
     try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(importFile))) {
       ZipEntry entry;
       while ((entry = zipInputStream.getNextEntry()) != null) {
@@ -78,7 +78,8 @@ public class DimensionImporter {
     }
   }
 
-  private static void extractZipEntry(ZipInputStream zipInputStream, ZipEntry entry, Path tempDir)
+  private static void extractZipEntry(
+      final ZipInputStream zipInputStream, final ZipEntry entry, final Path tempDir)
       throws IOException {
     Path filePath = tempDir.resolve(entry.getName());
     if (entry.isDirectory()) {
@@ -92,8 +93,10 @@ public class DimensionImporter {
   }
 
   private static DimensionImportData extractDimensionInfo(
-      File importFile, Path tempDir, ResourceLocation dimensionId, ResourceLocation dimensionTypeId)
-      throws IOException {
+      final File importFile,
+      final Path tempDir,
+      final ResourceLocation dimensionId,
+      final ResourceLocation dimensionTypeId) {
     // Default values
     String namespace = Constants.MOD_ID;
     String path = importFile.getName().replaceAll("\\..*$", "");
@@ -119,7 +122,7 @@ public class DimensionImporter {
     return new DimensionImportData(namespace, path, type);
   }
 
-  private static DimensionImportData readDimensionInfoFromFile(Path tempDir) {
+  private static DimensionImportData readDimensionInfoFromFile(final Path tempDir) {
     Path infoFile = findDimensionInfoFile(tempDir);
     if (infoFile == null) {
       return null;
@@ -143,7 +146,7 @@ public class DimensionImporter {
     return null;
   }
 
-  private static Path findDimensionInfoFile(Path tempDir) {
+  private static Path findDimensionInfoFile(final Path tempDir) {
     Path infoFile = tempDir.resolve("dimension.info");
     if (Files.exists(infoFile)) {
       return infoFile;
@@ -158,7 +161,9 @@ public class DimensionImporter {
   }
 
   private static void copyDimensionFiles(
-      MinecraftServer minecraftServer, Path tempDir, DimensionImportData importData)
+      final MinecraftServer minecraftServer,
+      final Path tempDir,
+      final DimensionImportData importData)
       throws IOException {
     Path worldDir = minecraftServer.getWorldPath(LevelResource.ROOT);
     Path targetDir =
@@ -170,7 +175,8 @@ public class DimensionImporter {
     }
   }
 
-  private static void copyFileIfNeeded(Path source, Path tempDir, Path targetDir) {
+  private static void copyFileIfNeeded(
+      final Path source, final Path tempDir, final Path targetDir) {
     Path relativePath = tempDir.relativize(source);
     if (DimensionIOUtils.shouldSkipFile(relativePath)) {
       return;
@@ -188,7 +194,7 @@ public class DimensionImporter {
     }
   }
 
-  private static void cleanupTempDirectory(Path tempDir) {
+  private static void cleanupTempDirectory(final Path tempDir) {
     try (Stream<Path> walk = Files.walk(tempDir)) {
       walk.sorted(Comparator.reverseOrder()).forEach(DimensionImporter::deleteQuietly);
     } catch (IOException e) {
@@ -196,7 +202,7 @@ public class DimensionImporter {
     }
   }
 
-  private static void deleteQuietly(Path path) {
+  private static void deleteQuietly(final Path path) {
     try {
       Files.delete(path);
     } catch (IOException e) {
@@ -204,15 +210,5 @@ public class DimensionImporter {
     }
   }
 
-  private static class DimensionImportData {
-    final String namespace;
-    final String path;
-    final String type;
-
-    DimensionImportData(String namespace, String path, String type) {
-      this.namespace = namespace;
-      this.path = path;
-      this.type = type;
-    }
-  }
+  private record DimensionImportData(String namespace, String path, String type) {}
 }

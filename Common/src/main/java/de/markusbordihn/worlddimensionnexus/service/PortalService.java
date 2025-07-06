@@ -32,32 +32,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
-/**
- * Portal Service for managing portals and their targeting information. Provides functionality to
- * create, manage, and maintain portal links between different dimensions. Handles automatic linking
- * based on matching properties and manages portal target storage.
- */
 public class PortalService {
 
-  /** Logger instance for this service. */
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Service");
-
-  /**
-   * Thread-safe map that stores portal target information. Maps from portal UUID to target
-   * information (dimension and position).
-   */
   private static final Map<UUID, PortalTargetData> portalTargets = new ConcurrentHashMap<>();
 
-  /** Private constructor to prevent instantiation. */
-  private PortalService() {
-    // Private constructor to prevent instantiation
-  }
+  private PortalService() {}
 
-  /**
-   * Synchronize the portal targets with the saved data.
-   *
-   * @param targetList List of portal target data to synchronize
-   */
   public static void syncTargets(final List<PortalTargetData> targetList) {
     if (targetList == null || targetList.isEmpty()) {
       log.warn("Portal target list is null or empty!");
@@ -75,35 +56,28 @@ public class PortalService {
     }
   }
 
-  /**
-   * Automatically links portals with matching properties (edge block type and color).
-   *
-   * @param portalInfo The portal to link
-   * @param dimensionPortals Portals in the same dimension
-   * @param allPortals Portals across all dimensions
-   */
+  /** Links portals with matching edge block type and color. */
   public static void autoLinkPortal(
       final PortalInfoData portalInfo,
       final List<PortalInfoData> dimensionPortals,
       final Iterable<PortalInfoData> allPortals) {
-    // Skip processing if portal is invalid or already has a target
+
     if (portalInfo == null || portalInfo.uuid() == null || getTarget(portalInfo) != null) {
       return;
     }
-
     PortalInfoData linkedPortal = null;
 
-    // First try to find a matching portal in the same dimension
+    // Try same dimension first
     if (dimensionPortals != null) {
       linkedPortal = findMatchingPortal(portalInfo, dimensionPortals);
     }
 
-    // If no match in same dimension, search across all dimensions
+    // Then search all dimensions
     if (linkedPortal == null && allPortals != null) {
       linkedPortal = findMatchingPortal(portalInfo, allPortals);
     }
 
-    // Link the portals bidirectionally if a match was found
+    // Link bidirectionally
     if (linkedPortal != null) {
       log.info("Auto-linking portals: {} <-> {}", portalInfo.uuid(), linkedPortal.uuid());
       setTarget(portalInfo, linkedPortal);
@@ -111,13 +85,6 @@ public class PortalService {
     }
   }
 
-  /**
-   * Helper method to find a matching portal with the same properties.
-   *
-   * @param portalInfo The reference portal
-   * @param potentialMatches Collection of portals to search
-   * @return The first matching portal or null if none found
-   */
   private static PortalInfoData findMatchingPortal(
       final PortalInfoData portalInfo, final Iterable<PortalInfoData> potentialMatches) {
     for (PortalInfoData existingPortal : potentialMatches) {
@@ -131,12 +98,6 @@ public class PortalService {
     return null;
   }
 
-  /**
-   * Get the target for a portal.
-   *
-   * @param portalInfo The portal to get the target for
-   * @return The portal target data, or null if not found
-   */
   public static PortalTargetData getTarget(final PortalInfoData portalInfo) {
     if (portalInfo == null) {
       return null;
@@ -144,12 +105,6 @@ public class PortalService {
     return portalTargets.get(portalInfo.uuid());
   }
 
-  /**
-   * Set a portal's target to another portal.
-   *
-   * @param portalInfo The source portal
-   * @param target The target portal
-   */
   public static void setTarget(final PortalInfoData portalInfo, final PortalInfoData target) {
     if (portalInfo == null || target == null) {
       return;
@@ -157,13 +112,6 @@ public class PortalService {
     setTarget(portalInfo, target.dimension(), target.getTeleportPosition());
   }
 
-  /**
-   * Set a portal's target to a specific dimension and position.
-   *
-   * @param portalInfo The source portal
-   * @param targetDimension The target dimension
-   * @param targetPosition The target position
-   */
   public static void setTarget(
       final PortalInfoData portalInfo,
       final ResourceKey<Level> targetDimension,
@@ -178,22 +126,12 @@ public class PortalService {
     PortalDataStorage.get().addTarget(portalTargetData);
   }
 
-  /**
-   * Remove a portal's target.
-   *
-   * @param portalInfo The portal to remove the target for
-   */
   public static void removeTarget(final PortalInfoData portalInfo) {
     if (portalInfo != null) {
       removeTarget(portalInfo.uuid());
     }
   }
 
-  /**
-   * Remove a portal's target by UUID.
-   *
-   * @param portalUUID The UUID of the portal to remove the target for
-   */
   public static void removeTarget(final UUID portalUUID) {
     if (portalUUID == null) {
       return;
@@ -207,7 +145,6 @@ public class PortalService {
     }
   }
 
-  /** Clear all portal targets. */
   public static void clear() {
     portalTargets.clear();
   }

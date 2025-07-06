@@ -32,7 +32,7 @@ public class WorldgenInitializer {
 
   private WorldgenInitializer() {}
 
-  public static void initialize(MinecraftServer server) {
+  public static void initialize(final MinecraftServer server) {
     log.info("Initializing worldgen configuration system...");
 
     try {
@@ -60,7 +60,7 @@ public class WorldgenInitializer {
     }
   }
 
-  public static void reload(MinecraftServer server) {
+  public static void reload(final MinecraftServer server) {
     log.info("Reloading worldgen configurations...");
 
     // Clear existing configurations

@@ -32,7 +32,7 @@ public class BlockEventHandler {
   private BlockEventHandler() {}
 
   @SubscribeEvent
-  public static void onBlockPlace(EntityPlaceEvent event) {
+  public static void onBlockPlace(final EntityPlaceEvent event) {
     if (event.isCanceled()) {
       return;
     }
@@ -51,7 +51,7 @@ public class BlockEventHandler {
   }
 
   @SubscribeEvent
-  public static void onBlockBreak(BlockEvent.BreakEvent event) {
+  public static void onBlockBreak(final BlockEvent.BreakEvent event) {
     if (event.isCanceled()) {
       return;
     }

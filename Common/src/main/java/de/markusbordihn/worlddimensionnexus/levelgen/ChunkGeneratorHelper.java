@@ -20,6 +20,7 @@
 package de.markusbordihn.worlddimensionnexus.levelgen;
 
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfig;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
 import java.util.Collections;
 import java.util.List;
@@ -69,17 +70,15 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getCustomChunkGenerator(
       final MinecraftServer server, final ChunkGeneratorType type) {
-    Optional<WorldgenConfigLoader.WorldgenConfig> config = WorldgenConfigLoader.getConfig(type);
+    Optional<WorldgenConfig> config = WorldgenConfigLoader.getConfig(type);
     if (config.isPresent()) {
       return createChunkGeneratorFromConfig(server, config.get());
     }
-    // Fallback auf Flat-Generator
     return getFlatChunkGenerator(server);
   }
 
   private static ChunkGenerator createChunkGeneratorFromConfig(
-      final MinecraftServer server, final WorldgenConfigLoader.WorldgenConfig config) {
-    // Je nach Konfiguration den entsprechenden Generator erstellen
+      final MinecraftServer server, final WorldgenConfig config) {
     if (config.noiseSettings().isPresent()) {
       return getNoiseChunkGenerator(server, config.type(), config.noiseSettings().get());
     }
@@ -88,7 +87,6 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getNoiseChunkGenerator(
       final MinecraftServer server, final ChunkGeneratorType type) {
-    // Standard Noise-Generator mit Overworld-Einstellungen
     return getNoiseChunkGenerator(
         server, type, ResourceLocation.fromNamespaceAndPath("minecraft", "overworld"));
   }
@@ -115,11 +113,7 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getVoidChunkGenerator(final MinecraftServer server) {
     return getFlatChunkGenerator(
-        server,
-        Collections.emptyList(), // Keine Schichten = Void
-        Biomes.THE_VOID,
-        Collections.emptyList(),
-        false);
+        server, Collections.emptyList(), Biomes.THE_VOID, Collections.emptyList(), false);
   }
 
   public static ChunkGenerator getLobbyChunkGenerator(final MinecraftServer server) {

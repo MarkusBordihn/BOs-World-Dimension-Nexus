@@ -22,9 +22,11 @@ package de.markusbordihn.worlddimensionnexus.server.commands;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfig;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenInitializer;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
@@ -33,7 +35,8 @@ import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionImporter;
 import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionImportFileSuggestion;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
-import de.markusbordihn.worlddimensionnexus.utils.TeleportHelper;
+import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionTypeSuggestion;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +44,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -66,7 +68,8 @@ public class DimensionCommand extends Command {
                             context ->
                                 createDimension(
                                     context.getSource(),
-                                    StringArgumentType.getString(context, "name")))
+                                    StringArgumentType.getString(context, "name"),
+                                    ChunkGeneratorType.VOID))
                         .then(
                             Commands.argument("type", StringArgumentType.word())
                                 .suggests(
@@ -148,41 +151,47 @@ public class DimensionCommand extends Command {
                                     null,
                                     StringArgumentType.getString(context, "file")))
                         .then(
-                            Commands.argument("dimension", ResourceLocationArgument.id())
+                            Commands.argument("dimensionName", StringArgumentType.word())
+                                .suggests(
+                                    (context, builder) -> {
+                                      String fileName =
+                                          StringArgumentType.getString(context, "file");
+                                      String baseName = fileName.replaceAll("\\.wdn$", "");
+                                      if (!DimensionManager.dimensionExists(
+                                          context.getSource().getServer(),
+                                          Constants.MOD_ID + ":" + baseName)) {
+                                        builder.suggest(baseName);
+                                      }
+                                      if (!baseName.equals("custom")
+                                          && !DimensionManager.dimensionExists(
+                                              context.getSource().getServer(),
+                                              Constants.MOD_ID + ":custom")) {
+                                        builder.suggest("custom");
+                                      }
+
+                                      return builder.buildFuture();
+                                    })
                                 .executes(
                                     context ->
-                                        importDimension(
+                                        importDimensionWithName(
                                             context.getSource(),
-                                            ResourceLocationArgument.getId(context, "dimension"),
+                                            StringArgumentType.getString(context, "dimensionName"),
                                             null,
                                             StringArgumentType.getString(context, "file")))
                                 .then(
-                                    Commands.argument(
-                                            "dimension_type", ResourceLocationArgument.id())
+                                    Commands.argument("dimensionType", StringArgumentType.string())
+                                        .suggests(
+                                            DimensionTypeSuggestion::suggestDimensionTypesFromFile)
                                         .executes(
                                             context ->
-                                                importDimension(
+                                                importDimensionWithName(
                                                     context.getSource(),
-                                                    ResourceLocationArgument.getId(
-                                                        context, "dimension"),
-                                                    ResourceLocationArgument.getId(
-                                                        context, "dimension_type"),
+                                                    StringArgumentType.getString(
+                                                        context, "dimensionName"),
+                                                    StringArgumentType.getString(
+                                                        context, "dimensionType"),
                                                     StringArgumentType.getString(
                                                         context, "file")))))))
-        .then(
-            Commands.literal("autoteleport")
-                .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
-                .then(
-                    Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
-                        .executes(
-                            context ->
-                                setAutoTeleport(
-                                    context.getSource(),
-                                    StringArgumentType.getString(context, "name"))))
-                .then(
-                    Commands.literal("off")
-                        .executes(context -> clearAutoTeleport(context.getSource()))))
         .then(
             Commands.literal("types")
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
@@ -198,7 +207,7 @@ public class DimensionCommand extends Command {
                         .executes(context -> listWorldgenConfigs(context.getSource()))));
   }
 
-  public static int listDimensions(CommandSourceStack context) {
+  public static int listDimensions(final CommandSourceStack context) {
     List<ResourceKey<Level>> dimensions = DimensionManager.getDimensions(context.getServer());
     if (dimensions.isEmpty()) {
       return sendFailureMessage(context, "No custom dimensions available.");
@@ -210,12 +219,21 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int createDimension(CommandSourceStack context, String dimensionName) {
-    ServerLevel serverLevel = DimensionManager.addOrCreateDimension(dimensionName);
-    return sendSuccessMessage(context, "Dimension '" + dimensionName + "' created successfully!");
+  public static int createDimension(final CommandSourceStack context, final String dimensionName) {
+    return createDimension(context, dimensionName, ChunkGeneratorType.VOID);
   }
 
-  public static int removeDimension(CommandSourceStack source, String name) {
+  public static int createDimension(
+      final CommandSourceStack context, final String dimensionName, final ChunkGeneratorType type) {
+    DimensionInfoData dimensionInfo = new DimensionInfoData(dimensionName, type);
+    ServerLevel serverLevel = DimensionManager.addOrCreateDimension(dimensionInfo, true);
+    if (serverLevel != null) {
+      return sendSuccessMessage(context, "Dimension '" + dimensionName + "' created successfully!");
+    }
+    return sendFailureMessage(context, "Failed to create dimension '" + dimensionName + "'!");
+  }
+
+  public static int removeDimension(final CommandSourceStack source, final String name) {
     boolean removed = DimensionManager.removeDimension(name);
     if (removed) {
       return sendSuccessMessage(
@@ -224,7 +242,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Dimension '" + name + "' could not be removed.");
   }
 
-  public static int infoDimension(CommandSourceStack source, String name) {
+  public static int infoDimension(final CommandSourceStack source, final String name) {
     DimensionInfoData info = DimensionManager.getDimensionInfoData(name);
     if (info == null) {
       return sendFailureMessage(source, "Dimension '" + name + "' not found.");
@@ -233,15 +251,15 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int teleportToDimension(CommandSourceStack source, String name)
+  public static int teleportToDimension(final CommandSourceStack source, final String name)
       throws CommandSyntaxException {
     ServerPlayer player = source.getPlayerOrException();
     return teleportPlayerToDimension(source, name, player);
   }
 
   public static int teleportPlayerToDimension(
-      CommandSourceStack source, String name, ServerPlayer player) {
-    if (!TeleportHelper.safeTeleportToDimension(player, name)) {
+      final CommandSourceStack source, final String name, final ServerPlayer player) {
+    if (!TeleportManager.safeTeleportToDimension(player, name)) {
       return sendFailureMessage(source, "Dimension '" + name + "' not found or teleport failed.");
     }
     sendSuccessMessage(
@@ -249,14 +267,8 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int setAutoTeleport(CommandSourceStack source, String name)
-      throws CommandSyntaxException {
-    ServerPlayer player = source.getPlayerOrException();
-    // AutoTeleportManager.setAutoTeleport(player.getUUID(), name);
-    return sendSuccessMessage(source, "Auto-teleport on join set to '" + name + "'.");
-  }
-
-  private static int exportDimension(CommandSourceStack source, ResourceKey<Level> dimension) {
+  private static int exportDimension(
+      final CommandSourceStack source, final ResourceKey<Level> dimension) {
     MinecraftServer server = source.getServer();
     if (dimension == null) {
       return sendFailureMessage(source, "Dimension '" + dimension + "' could not be found.");
@@ -274,10 +286,10 @@ public class DimensionCommand extends Command {
   }
 
   private static int importDimension(
-      CommandSourceStack source,
-      ResourceLocation dimensionId,
-      ResourceLocation dimensionTypeId,
-      String fileName) {
+      final CommandSourceStack source,
+      final ResourceLocation dimensionId,
+      final ResourceLocation dimensionTypeId,
+      final String fileName) {
     MinecraftServer server = source.getServer();
     File importFile = WorldDataPackResourceManager.getDataPackFile(server, fileName);
     if (importFile == null || !importFile.exists() || !importFile.isFile()) {
@@ -297,15 +309,8 @@ public class DimensionCommand extends Command {
     }
   }
 
-  public static int clearAutoTeleport(CommandSourceStack source) throws CommandSyntaxException {
-    ServerPlayer player = source.getPlayerOrException();
-    // AutoTeleportManager.clearAutoTeleport(player.getUUID());
-    return sendSuccessMessage(source, "Auto-teleport on join cleared.");
-  }
-
-  // Neue Methoden für ChunkGeneratorType-Support
   public static int createTypedDimension(
-      CommandSourceStack context, String dimensionName, String typeName) {
+      final CommandSourceStack context, final String dimensionName, final String typeName) {
     ChunkGeneratorType type = ChunkGeneratorType.fromString(typeName);
     DimensionInfoData dimensionInfo = new DimensionInfoData(dimensionName, type);
     ServerLevel serverLevel = DimensionManager.addOrCreateDimension(dimensionInfo, true);
@@ -323,7 +328,7 @@ public class DimensionCommand extends Command {
         String.format("Failed to create dimension '%s' with type '%s'!", dimensionName, typeName));
   }
 
-  public static int listChunkGeneratorTypes(CommandSourceStack context) {
+  public static int listChunkGeneratorTypes(final CommandSourceStack context) {
     sendSuccessMessage(context, "Available Chunk Generator Types\n===============================");
 
     for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
@@ -333,11 +338,11 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  private static String getConfigStatus(ChunkGeneratorType type) {
+  private static String getConfigStatus(final ChunkGeneratorType type) {
     return WorldgenConfigLoader.getConfig(type).isPresent() ? "✓ Configured" : "✗ Default";
   }
 
-  public static int reloadWorldgenConfigs(CommandSourceStack context) {
+  public static int reloadWorldgenConfigs(final CommandSourceStack context) {
     try {
       WorldgenInitializer.reload(context.getServer());
       return sendSuccessMessage(context, "Worldgen configurations reloaded successfully!");
@@ -346,7 +351,7 @@ public class DimensionCommand extends Command {
     }
   }
 
-  public static int listWorldgenConfigs(CommandSourceStack context) {
+  public static int listWorldgenConfigs(final CommandSourceStack context) {
     var configs = WorldgenConfigLoader.getAllConfigs();
     if (configs.isEmpty()) {
       return sendFailureMessage(context, "No worldgen configurations loaded.");
@@ -362,7 +367,7 @@ public class DimensionCommand extends Command {
   }
 
   private static String buildConfigDetails(
-      ChunkGeneratorType type, WorldgenConfigLoader.WorldgenConfig config) {
+      final ChunkGeneratorType type, final WorldgenConfig config) {
     StringBuilder details = new StringBuilder();
     details.append("- ").append(type.getName()).append(":");
 
@@ -376,7 +381,81 @@ public class DimensionCommand extends Command {
     return details.toString();
   }
 
-  private static void appendConfigDetail(StringBuilder details, String key, Optional<?> value) {
+  private static void appendConfigDetail(
+      final StringBuilder details, final String key, final Optional<?> value) {
     value.ifPresent(o -> details.append(" ").append(key).append("=").append(o));
+  }
+
+  private static int importDimensionWithName(
+      final CommandSourceStack source,
+      final String dimensionName,
+      final String dimensionType,
+      final String fileName) {
+    MinecraftServer server = source.getServer();
+
+    // Detailed logging about the import process
+    sendSuccessMessage(source, "Starting dimension import process...");
+    sendSuccessMessage(source, "File: " + fileName);
+    sendSuccessMessage(source, "Target dimension name: " + dimensionName);
+    sendSuccessMessage(
+        source, "Target dimension type: " + (dimensionType != null ? dimensionType : "default"));
+
+    // Check if dimension already exists
+    String fullDimensionName = Constants.MOD_ID + ":" + dimensionName;
+    if (DimensionManager.dimensionExists(server, fullDimensionName)) {
+      return sendFailureMessage(source, "Dimension '" + fullDimensionName + "' already exists!");
+    }
+
+    // Find the import file
+    File importFile = WorldDataPackResourceManager.getDataPackFile(server, fileName);
+    if (importFile == null || !importFile.exists() || !importFile.isFile()) {
+      return sendFailureMessage(source, "Import file not found: " + fileName);
+    }
+
+    // Log file details
+    long fileSizeKB = importFile.length() / 1024;
+    sendSuccessMessage(
+        source, "Found import file: " + importFile.getAbsolutePath() + " (" + fileSizeKB + " KB)");
+
+    try {
+      // Create ResourceLocation objects
+      ResourceLocation dimensionId =
+          ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionName);
+      ResourceLocation dimensionTypeId = null;
+
+      if (dimensionType != null && !dimensionType.trim().isEmpty()) {
+        try {
+          dimensionTypeId = ResourceLocation.parse(dimensionType);
+          sendSuccessMessage(source, "Using custom dimension type: " + dimensionTypeId);
+        } catch (Exception e) {
+          return sendFailureMessage(source, "Invalid dimension type format: " + dimensionType);
+        }
+      } else {
+        sendSuccessMessage(source, "Using default dimension type from import file");
+      }
+
+      // Perform the import
+      sendSuccessMessage(source, "Importing dimension data...");
+      boolean success =
+          DimensionImporter.importDimension(server, importFile, dimensionId, dimensionTypeId);
+
+      if (success) {
+        sendSuccessMessage(source, "Successfully imported dimension data");
+        sendSuccessMessage(source, "Creating and registering dimension: " + fullDimensionName);
+
+        // Verify the dimension was created
+        if (DimensionManager.dimensionExists(server, fullDimensionName)) {
+          return sendSuccessMessage(
+              source, "Dimension '" + fullDimensionName + "' created successfully!");
+        } else {
+          return sendFailureMessage(
+              source, "Dimension import completed but dimension not found in registry");
+        }
+      } else {
+        return sendFailureMessage(source, "Failed to import dimension from " + fileName);
+      }
+    } catch (Exception e) {
+      return sendFailureMessage(source, "Error during import: " + e.getMessage());
+    }
   }
 }

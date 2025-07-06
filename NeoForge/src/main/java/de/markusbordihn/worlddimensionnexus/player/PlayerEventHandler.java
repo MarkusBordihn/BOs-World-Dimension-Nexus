@@ -29,21 +29,21 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 public class PlayerEventHandler {
 
   @SubscribeEvent
-  public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+  public static void onPlayerLogin(final PlayerEvent.PlayerLoggedInEvent event) {
     if (event.getEntity() instanceof ServerPlayer serverPlayer) {
       PlayerEvents.handlePlayerLoginEvent(serverPlayer);
     }
   }
 
   @SubscribeEvent
-  public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+  public static void onPlayerLogout(final PlayerEvent.PlayerLoggedOutEvent event) {
     if (event.getEntity() instanceof ServerPlayer serverPlayer) {
       PlayerEvents.handlePlayerLogoutEvent(serverPlayer);
     }
   }
 
   @SubscribeEvent
-  public static void onPlayerTick(PlayerTickEvent.Post event) {
+  public static void onPlayerTick(final PlayerTickEvent.Post event) {
     if (event.getEntity() instanceof ServerPlayer serverPlayer) {
       PlayerEvents.handlePlayerPostTickEvent(serverPlayer);
     }

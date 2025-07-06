@@ -23,7 +23,7 @@ import java.nio.file.Path;
 
 public class DimensionIOUtils {
 
-  public static boolean shouldSkipFile(Path relativePath) {
+  public static boolean shouldSkipFile(final Path relativePath) {
     String relName = relativePath.toString().replace("\\", "/").toLowerCase();
 
     // Skip known files and directories that should not be imported into the dimension folder.

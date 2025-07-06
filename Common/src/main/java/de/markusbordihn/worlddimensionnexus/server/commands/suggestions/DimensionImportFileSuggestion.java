@@ -33,14 +33,14 @@ import net.minecraft.world.level.storage.LevelResource;
 public class DimensionImportFileSuggestion {
 
   public static CompletableFuture<Suggestions> suggestImportFiles(
-      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+      final CommandContext<CommandSourceStack> context, final SuggestionsBuilder builder) {
     suggestFromDataFolder(context, builder);
     suggestFromDatapackFolder(context, builder);
     return builder.buildFuture();
   }
 
   public static CompletableFuture<Suggestions> suggestFromDataFolder(
-      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+      final CommandContext<CommandSourceStack> context, final SuggestionsBuilder builder) {
     Path dataDir = context.getSource().getServer().getWorldPath(LevelResource.ROOT).resolve("data");
     try (Stream<Path> files = Files.walk(dataDir)) {
       files
@@ -57,7 +57,7 @@ public class DimensionImportFileSuggestion {
   }
 
   private static void suggestFromDatapackFolder(
-      CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+      final CommandContext<CommandSourceStack> context, final SuggestionsBuilder builder) {
     Path wdnFolder =
         context
             .getSource()

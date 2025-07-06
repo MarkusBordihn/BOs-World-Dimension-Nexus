@@ -25,11 +25,13 @@ import com.mojang.serialization.JsonOps;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenInitializer;
+import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -49,45 +51,79 @@ import net.minecraft.world.level.storage.ServerLevelData;
 public class DimensionManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Manager");
-
   private static final Set<DimensionInfoData> dimensions = ConcurrentHashMap.newKeySet();
   private static MinecraftServer minecraftServer;
 
   private DimensionManager() {}
 
-  public static void sync(MinecraftServer minecraftServer, List<DimensionInfoData> dimensionList) {
-
-    // Validate and store server instance before synchronizing dimensions.
+  public static void sync(
+      final MinecraftServer minecraftServer, final List<DimensionInfoData> dimensionList) {
     if (minecraftServer == null) {
       log.error("Minecraft server is null, cannot synchronize dimensions.");
       return;
     }
     DimensionManager.minecraftServer = minecraftServer;
 
-    // Initialize worldgen system on first sync
     WorldgenInitializer.initialize(minecraftServer);
 
-    // Validate the dimension list.
     if (dimensionList == null || dimensionList.isEmpty()) {
       log.warn(
           "No dimensions to synchronize: list is {}.", (dimensionList == null ? "null" : "empty"));
       return;
     }
 
-    // Synchronize dimensions by clearing existing ones and creating new ones.
     log.info("Synchronizing {} dimensions ...", dimensionList.size());
     clear();
+
+    List<DimensionInfoData> dimensionsToUpdate = new ArrayList<>();
     for (DimensionInfoData dimensionInfo : dimensionList) {
-      addOrCreateDimension(dimensionInfo, false);
+      ServerLevel level = addOrCreateDimension(dimensionInfo, false);
+      if (level != null) {
+        DimensionInfoData updated = markDimensionAsServerStartLoaded(dimensionInfo);
+        if (updated != null) {
+          dimensionsToUpdate.add(updated);
+        }
+      }
+    }
+
+    if (!dimensionsToUpdate.isEmpty()) {
+      updateDimensionStorage(dimensionsToUpdate, dimensionList);
     }
   }
 
-  public static ServerLevel addOrCreateDimension(String dimensionName) {
+  private static DimensionInfoData markDimensionAsServerStartLoaded(
+      final DimensionInfoData dimensionInfo) {
+    if (dimensionInfo.requiresHotInjectionSync()) {
+      DimensionInfoData updatedInfo = dimensionInfo.withoutHotInjectionSync();
+      dimensions.remove(dimensionInfo);
+      dimensions.add(updatedInfo);
+      return updatedInfo;
+    }
+    return null;
+  }
+
+  private static void updateDimensionStorage(
+      final List<DimensionInfoData> updatedDimensions,
+      final List<DimensionInfoData> originalDimensions) {
+    DimensionDataStorage storage = DimensionDataStorage.get();
+    List<DimensionInfoData> originalDimensionsCopy = new ArrayList<>(originalDimensions);
+    for (DimensionInfoData original : originalDimensionsCopy) {
+      if (original.requiresHotInjectionSync()) {
+        storage.removeDimension(original);
+      }
+    }
+
+    for (DimensionInfoData updated : updatedDimensions) {
+      storage.addDimension(updated);
+    }
+  }
+
+  public static ServerLevel addOrCreateDimension(final String dimensionName) {
     return addOrCreateDimension(new DimensionInfoData(dimensionName), true);
   }
 
   public static ServerLevel addOrCreateDimension(
-      DimensionInfoData dimensionInfo, boolean updateStorage) {
+      final DimensionInfoData dimensionInfo, final boolean updateStorage) {
     if (dimensionInfo == null) {
       log.warn("DimensionInfoData is null, skipping ...");
       return null;
@@ -102,7 +138,7 @@ public class DimensionManager {
   }
 
   private static ServerLevel createNewDimension(
-      DimensionInfoData dimensionInfo, boolean updateStorage) {
+      final DimensionInfoData dimensionInfo, final boolean updateStorage) {
     ChunkGenerator chunkGenerator = dimensionInfo.getChunkGenerator(minecraftServer);
     LevelStem levelStem =
         new LevelStem(dimensionInfo.getDimensionTypeHolder(minecraftServer), chunkGenerator);
@@ -115,7 +151,7 @@ public class DimensionManager {
   }
 
   private static ServerLevel buildServerLevel(
-      DimensionInfoData dimensionInfo, LevelStem levelStem) {
+      final DimensionInfoData dimensionInfo, final LevelStem levelStem) {
     ServerLevel overworld = minecraftServer.overworld();
     return new ServerLevel(
         minecraftServer,
@@ -133,33 +169,34 @@ public class DimensionManager {
   }
 
   private static void registerDimension(
-      DimensionInfoData dimensionInfo, ServerLevel newLevel, boolean updateStorage) {
+      final DimensionInfoData dimensionInfo, final ServerLevel newLevel, boolean updateStorage) {
     minecraftServer.levels.put(dimensionInfo.name(), newLevel);
     dimensions.add(dimensionInfo);
+
+    if (dimensionInfo.requiresHotInjectionSync()) {
+      NetworkHandler.syncDimensionToClients(newLevel);
+    }
 
     if (updateStorage) {
       DimensionDataStorage.get().addDimension(dimensionInfo);
     }
   }
 
-  public static boolean removeDimension(String name) {
+  public static boolean removeDimension(final String name) {
     return removeDimension(getDimensionInfoData(name));
   }
 
-  public static boolean removeDimension(DimensionInfoData dimensionInfoData) {
+  public static boolean removeDimension(final DimensionInfoData dimensionInfoData) {
     if (dimensionInfoData == null) {
       log.warn("DimensionInfoData is null, skipping ...");
       return false;
     }
 
-    // Check if the dimension exists and remove it.
     if (dimensions.remove(dimensionInfoData)) {
       ResourceKey<Level> levelKey = dimensionInfoData.name();
       ServerLevel serverLevel = getServerLevel(levelKey);
       if (serverLevel != null) {
         minecraftServer.levels.remove(levelKey);
-
-        // Remove from persistent storage as well
         DimensionDataStorage.get().removeDimension(dimensionInfoData);
 
         log.info("Removed dimension: {}", levelKey.location());
@@ -173,18 +210,41 @@ public class DimensionManager {
     return false;
   }
 
-  public static DimensionInfoData getDimensionInfoData(String name) {
+  public static DimensionInfoData getDimensionInfoData(final String name) {
+    if (!name.contains(":")) {
+      return getDimensionInfoDataByModName(name);
+    }
+
+    try {
+      ResourceLocation resourceLocation = ResourceLocation.parse(name);
+      return getDimensionInfoData(resourceLocation);
+    } catch (Exception e) {
+      log.warn("Invalid resource location format: {}", name);
+      return null;
+    }
+  }
+
+  public static DimensionInfoData getDimensionInfoDataByModName(final String simpleName) {
     for (DimensionInfoData dimensionInfo : dimensions) {
       ResourceLocation dimensionLocation = dimensionInfo.name().location();
       if (dimensionLocation.getNamespace().equals(Constants.MOD_ID)
-          && dimensionLocation.getPath().equals(name)) {
+          && dimensionLocation.getPath().equals(simpleName)) {
         return dimensionInfo;
       }
     }
     return null;
   }
 
-  public static ServerLevel getDimensionServerLevel(String name) {
+  public static DimensionInfoData getDimensionInfoData(final ResourceLocation resourceLocation) {
+    for (DimensionInfoData dimensionInfo : dimensions) {
+      if (dimensionInfo.name().location().equals(resourceLocation)) {
+        return dimensionInfo;
+      }
+    }
+    return null;
+  }
+
+  public static ServerLevel getDimensionServerLevel(final String name) {
     DimensionInfoData dimensionInfo = getDimensionInfoData(name);
     if (dimensionInfo != null) {
       return getServerLevel(dimensionInfo.name());
@@ -193,13 +253,13 @@ public class DimensionManager {
     return null;
   }
 
-  public static List<ResourceKey<Level>> getDimensions(MinecraftServer server) {
+  public static List<ResourceKey<Level>> getDimensions(final MinecraftServer server) {
     return server.levelKeys().stream()
         .filter(levelKey -> !levelKey.equals(Level.OVERWORLD))
         .toList();
   }
 
-  public static DimensionInfoData getDimensionInfo(ResourceKey<Level> levelKey) {
+  public static DimensionInfoData getDimensionInfo(final ResourceKey<Level> levelKey) {
     for (DimensionInfoData dimensionInfo : dimensions) {
       if (dimensionInfo.name().equals(levelKey)) {
         return dimensionInfo;
@@ -208,7 +268,7 @@ public class DimensionManager {
     return null;
   }
 
-  public static Collection<String> getDimensionNames(MinecraftServer server) {
+  public static Collection<String> getDimensionNames() {
     return dimensions.stream()
         .map(dimensionInfo -> dimensionInfo.name().location())
         .filter(location -> location.getNamespace().equals(Constants.MOD_ID))
@@ -216,32 +276,45 @@ public class DimensionManager {
         .toList();
   }
 
-  public static DimensionType loadDimensionType(Path path, RegistryAccess registryAccess)
-      throws Exception {
-    String json = Files.readString(path);
-    JsonElement element = JsonParser.parseString(json);
-    RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
-    var result = DimensionType.DIRECT_CODEC.parse(ops, element);
-    if (result.result().isEmpty()) {
-      throw new IllegalArgumentException(
-          "Error parsing DimensionType: " + result.error().get().message());
+  public static DimensionType loadDimensionType(
+      final Path path, final RegistryAccess registryAccess) throws IllegalArgumentException {
+    try {
+      String json = Files.readString(path);
+      JsonElement element = JsonParser.parseString(json);
+      RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
+      var result = DimensionType.DIRECT_CODEC.parse(ops, element);
+      if (result.error().isPresent()) {
+        throw new IllegalArgumentException(
+            "Error parsing DimensionType: " + result.error().get().message());
+      }
+      return result
+          .result()
+          .orElseThrow(() -> new IllegalArgumentException("Failed to parse DimensionType"));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to load DimensionType from path: " + path, e);
     }
-    return result.result().get();
   }
 
-  public static LevelStem loadLevelStem(Path path, RegistryAccess registryAccess) throws Exception {
-    String json = Files.readString(path);
-    JsonElement element = JsonParser.parseString(json);
-    RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
-    var result = LevelStem.CODEC.parse(ops, element);
-    if (result.result().isEmpty()) {
-      throw new IllegalArgumentException(
-          "Error parsing LevelStem: " + result.error().get().message());
+  public static LevelStem loadLevelStem(final Path path, final RegistryAccess registryAccess)
+      throws IllegalArgumentException {
+    try {
+      String json = Files.readString(path);
+      JsonElement element = JsonParser.parseString(json);
+      RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
+      var result = LevelStem.CODEC.parse(ops, element);
+      if (result.error().isPresent()) {
+        throw new IllegalArgumentException(
+            "Error parsing LevelStem: " + result.error().get().message());
+      }
+      return result
+          .result()
+          .orElseThrow(() -> new IllegalArgumentException("Failed to parse LevelStem"));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to load LevelStem from path: " + path, e);
     }
-    return result.result().get();
   }
 
-  private static ServerLevel getServerLevel(ResourceKey<Level> levelKey) {
+  private static ServerLevel getServerLevel(final ResourceKey<Level> levelKey) {
     return minecraftServer == null ? null : minecraftServer.getLevel(levelKey);
   }
 
@@ -250,7 +323,30 @@ public class DimensionManager {
     dimensions.clear();
   }
 
-  /** Clears all dimension cache data. Used when switching worlds to prevent data bleeding. */
+  public static boolean dimensionExists(final MinecraftServer server, final String dimension) {
+    if (server == null || dimension == null) {
+      return false;
+    }
+
+    // Check our managed dimensions first
+    if (getDimensionInfoData(dimension) != null) {
+      return true;
+    }
+
+    // Check vanilla and other mod dimensions
+    try {
+      ResourceLocation dimensionResourceLocation = ResourceLocation.parse(dimension);
+      ServerLevel level =
+          server.getLevel(
+              ResourceKey.create(
+                  net.minecraft.core.registries.Registries.DIMENSION, dimensionResourceLocation));
+      return level != null;
+    } catch (Exception e) {
+      log.debug("Failed to parse dimension resource location: {}", dimension);
+      return false;
+    }
+  }
+
   public static void clearAllCache() {
     log.info("Clearing dimension manager cache for world switch...");
     dimensions.clear();

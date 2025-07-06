@@ -19,30 +19,25 @@
 
 package de.markusbordihn.worlddimensionnexus.utils;
 
-import de.markusbordihn.worlddimensionnexus.data.teleport.TeleportHistory;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.service.TeleportService;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 
-/**
- * Manages static cache cleanup to prevent data bleeding between singleplayer worlds. When switching
- * worlds, static caches persist and cause incorrect data to appear in the new world.
- */
 public class CacheManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Cache Manager");
 
   private CacheManager() {}
 
-  /** Clears all static caches and data structures for clean world transitions. */
   public static void clearAllCaches() {
     log.info("Clearing all static caches for world switch...");
 
-    TeleportHistory.clearAllHistory();
-    TeleportService.clearAllState();
+    TeleportHistory.clearAllCache();
+    TeleportService.clearAllCache();
     DimensionManager.clearAllCache();
-    AutoTeleportManager.clearAllState();
+    AutoTeleportManager.clearAllCache();
 
     log.info("All static caches cleared successfully.");
   }

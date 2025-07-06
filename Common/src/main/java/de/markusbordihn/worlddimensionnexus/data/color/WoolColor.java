@@ -50,11 +50,11 @@ public class WoolColor {
     WOOL_BLOCK_COLOR_MAP.put(Blocks.BLACK_WOOL, DyeColor.BLACK);
   }
 
-  public static Optional<DyeColor> get(BlockState blockState) {
+  public static Optional<DyeColor> get(final BlockState blockState) {
     return get(blockState.getBlock());
   }
 
-  public static Optional<DyeColor> get(Block block) {
+  public static Optional<DyeColor> get(final Block block) {
     return Optional.ofNullable(WOOL_BLOCK_COLOR_MAP.get(block));
   }
 }

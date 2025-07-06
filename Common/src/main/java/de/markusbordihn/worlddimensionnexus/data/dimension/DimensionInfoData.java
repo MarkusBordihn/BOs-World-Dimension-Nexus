@@ -40,7 +40,8 @@ public record DimensionInfoData(
     UUID uuid,
     ResourceKey<Level> name,
     ResourceKey<DimensionType> type,
-    ChunkGeneratorType chunkGeneratorType) {
+    ChunkGeneratorType chunkGeneratorType,
+    boolean requiresHotInjectionSync) {
 
   public static final Codec<DimensionInfoData> CODEC =
       RecordCodecBuilder.create(
@@ -56,32 +57,41 @@ public record DimensionInfoData(
                           .forGetter(DimensionInfoData::type),
                       ChunkGeneratorType.CODEC
                           .fieldOf("chunk_generator_type")
-                          .forGetter(DimensionInfoData::chunkGeneratorType))
+                          .forGetter(DimensionInfoData::chunkGeneratorType),
+                      Codec.BOOL
+                          .optionalFieldOf("requires_hot_injection_sync", false)
+                          .forGetter(DimensionInfoData::requiresHotInjectionSync))
                   .apply(instance, DimensionInfoData::new));
 
-  public DimensionInfoData(String name) {
+  public DimensionInfoData(final String name) {
     this(
         UUID.randomUUID(),
         ResourceKey.create(
             Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, name)),
         BuiltinDimensionTypes.OVERWORLD,
-        ChunkGeneratorType.FLAT);
+        ChunkGeneratorType.FLAT,
+        true); // New dimensions created at runtime need hot-injection sync
   }
 
-  public DimensionInfoData(String name, ChunkGeneratorType chunkGeneratorType) {
+  public DimensionInfoData(final String name, final ChunkGeneratorType chunkGeneratorType) {
     this(
         UUID.randomUUID(),
         ResourceKey.create(
             Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, name)),
         BuiltinDimensionTypes.OVERWORLD,
-        chunkGeneratorType);
+        chunkGeneratorType,
+        true);
   }
 
-  public ChunkGenerator getChunkGenerator(MinecraftServer server) {
+  public DimensionInfoData withoutHotInjectionSync() {
+    return new DimensionInfoData(uuid, name, type, chunkGeneratorType, false);
+  }
+
+  public ChunkGenerator getChunkGenerator(final MinecraftServer server) {
     return ChunkGeneratorHelper.getDefault(server, this.chunkGeneratorType);
   }
 
-  public Holder<DimensionType> getDimensionTypeHolder(MinecraftServer server) {
+  public Holder<DimensionType> getDimensionTypeHolder(final MinecraftServer server) {
     return server
         .registryAccess()
         .registryOrThrow(Registries.DIMENSION_TYPE)
@@ -89,7 +99,7 @@ public record DimensionInfoData(
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(final Object object) {
     return object instanceof DimensionInfoData other && this.uuid.equals(other.uuid);
   }
 

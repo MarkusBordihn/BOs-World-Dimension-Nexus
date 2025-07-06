@@ -35,14 +35,13 @@ import net.minecraft.world.level.saveddata.SavedData;
 public class DimensionDataStorage extends SavedData {
 
   public static final String DATA_NAME = Constants.MOD_ID + "_dimensions";
-
   private static final PrefixLogger log = ModLogger.getPrefixLogger("[Dimension Data Storage]");
   private static final String DIMENSION_TAG = "Dimensions";
 
   private static DimensionDataStorage instance = null;
   private final List<DimensionInfoData> dimensionList;
 
-  public DimensionDataStorage(List<DimensionInfoData> dimensionList) {
+  public DimensionDataStorage(final List<DimensionInfoData> dimensionList) {
     log.info("Creating new Dimension Data Storage with {} dimensions.", dimensionList.size());
     this.dimensionList = dimensionList;
   }
@@ -66,7 +65,10 @@ public class DimensionDataStorage extends SavedData {
   }
 
   public static DimensionDataStorage get(final ServerLevel level) {
-    return level.getDataStorage().computeIfAbsent(factory(), DATA_NAME);
+    if (instance == null) {
+      instance = level.getDataStorage().computeIfAbsent(factory(), DATA_NAME);
+    }
+    return instance;
   }
 
   public static SavedData.Factory<DimensionDataStorage> factory() {

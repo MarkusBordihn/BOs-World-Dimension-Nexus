@@ -13,15 +13,15 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class PlayerEvents {
 
-  public static void handlePlayerLoginEvent(ServerPlayer serverPlayer) {
+  public static void handlePlayerLoginEvent(final ServerPlayer serverPlayer) {
     AutoTeleportManager.handlePlayerLogin(serverPlayer);
   }
 
-  public static void handlePlayerLogoutEvent(ServerPlayer serverPlayer) {
-    AutoTeleportManager.handlePlayerLogout(serverPlayer);
+  public static void handlePlayerLogoutEvent(final ServerPlayer serverPlayer) {
+    // Unused, but can be implemented if needed in the future.
   }
 
-  public static void handlePlayerPostTickEvent(ServerPlayer serverPlayer) {
+  public static void handlePlayerPostTickEvent(final ServerPlayer serverPlayer) {
     BlockState blockState = serverPlayer.getInBlockState();
     if (blockState.isAir()) {
       return;

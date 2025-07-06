@@ -32,13 +32,11 @@ import net.minecraft.world.level.block.state.BlockState;
 public class BlockEvents {
 
   public static boolean handleBlockBreak(
-      ServerLevel serverLevel,
-      BlockPos blockPos,
-      ServerPlayer serverPlayer,
-      Block block,
-      BlockState blockState) {
-
-    // Ignore air blocks.
+      final ServerLevel serverLevel,
+      final BlockPos blockPos,
+      final ServerPlayer serverPlayer,
+      final Block block,
+      final BlockState blockState) {
     if (blockState.isAir()) {
       return true;
     }
@@ -65,11 +63,11 @@ public class BlockEvents {
   }
 
   public static void handleBlockPlace(
-      ServerLevel serverLevel,
-      BlockPos blockPos,
-      ServerPlayer serverPlayer,
-      Block block,
-      BlockState blockState) {
+      final ServerLevel serverLevel,
+      final BlockPos blockPos,
+      final ServerPlayer serverPlayer,
+      final Block block,
+      final BlockState blockState) {
 
     // Check for potential portals blocks and create a new portal if it is relevant.
     if (PortalBlockManager.isRelevantPortalFrameBlock(block, blockState)) {

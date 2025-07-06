@@ -24,54 +24,36 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Manages cooldowns for teleport commands to prevent abuse. */
 public class TeleportCooldownManager {
 
   private static final ConcurrentHashMap<UUID, Long> backTeleportCooldowns =
       new ConcurrentHashMap<>();
 
-  /**
-   * Checks if a player can use the back teleport command.
-   *
-   * @param player the player to check
-   * @return true if the player can teleport, false if still on cooldown
-   */
-  public static boolean canTeleportBack(ServerPlayer player) {
+  public static boolean canTeleportBack(final ServerPlayer player) {
     if (!TeleportConfig.isBackTeleportCooldownEnabled()) {
-      return true; // No cooldown configured
+      return true;
     }
 
     UUID playerId = player.getUUID();
     Long lastTeleport = backTeleportCooldowns.get(playerId);
 
     if (lastTeleport == null) {
-      return true; // First time teleporting
+      return true;
     }
 
     long currentTime = System.currentTimeMillis();
-    long cooldownTime = TeleportConfig.getBackTeleportCooldown() * 1000L; // Convert to milliseconds
+    long cooldownTime = TeleportConfig.getBackTeleportCooldown() * 1000L;
 
     return (currentTime - lastTeleport) >= cooldownTime;
   }
 
-  /**
-   * Records that a player has used the back teleport command.
-   *
-   * @param player the player who teleported
-   */
-  public static void recordBackTeleport(ServerPlayer player) {
+  public static void recordBackTeleport(final ServerPlayer player) {
     if (TeleportConfig.isBackTeleportCooldownEnabled()) {
       backTeleportCooldowns.put(player.getUUID(), System.currentTimeMillis());
     }
   }
 
-  /**
-   * Gets the remaining cooldown time for a player in seconds.
-   *
-   * @param player the player to check
-   * @return remaining cooldown in seconds, 0 if no cooldown
-   */
-  public static int getRemainingCooldown(ServerPlayer player) {
+  public static int getRemainingCooldown(final ServerPlayer player) {
     if (!TeleportConfig.isBackTeleportCooldownEnabled()) {
       return 0;
     }
@@ -94,16 +76,10 @@ public class TeleportCooldownManager {
     return (int) ((cooldownTime - timePassed) / 1000L);
   }
 
-  /**
-   * Clears the cooldown for a player (useful for admin commands or cleanup).
-   *
-   * @param player the player whose cooldown to clear
-   */
-  public static void clearCooldown(ServerPlayer player) {
+  public static void clearCooldown(final ServerPlayer player) {
     backTeleportCooldowns.remove(player.getUUID());
   }
 
-  /** Clears all cooldowns (useful for server restart cleanup). */
   public static void clearAllCooldowns() {
     backTeleportCooldowns.clear();
   }

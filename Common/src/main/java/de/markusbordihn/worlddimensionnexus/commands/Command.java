@@ -34,26 +34,26 @@ public class Command {
 
   protected Command() {}
 
-  public static int sendFailureMessage(CommandSourceStack context, Component message) {
+  public static int sendFailureMessage(final CommandSourceStack context, final Component message) {
     context.sendFailure(message);
     return FAILURE;
   }
 
-  public static int sendFailureMessage(CommandSourceStack context, String message) {
+  public static int sendFailureMessage(final CommandSourceStack context, final String message) {
     return sendFailureMessage(context, Component.literal(message));
   }
 
-  public static int sendSuccessMessage(CommandSourceStack context, Component message) {
+  public static int sendSuccessMessage(final CommandSourceStack context, final Component message) {
     context.sendSuccess(() -> message, true);
     return SINGLE_SUCCESS;
   }
 
-  public static int sendSuccessMessage(CommandSourceStack context, String message) {
+  public static int sendSuccessMessage(final CommandSourceStack context, final String message) {
     return sendSuccessMessage(context, Component.literal(message));
   }
 
   public static int sendSuccessMessage(
-      CommandSourceStack context, String message, ChatFormatting formatting) {
+      final CommandSourceStack context, final String message, final ChatFormatting formatting) {
     return sendSuccessMessage(context, Component.literal(message).withStyle(formatting));
   }
 }

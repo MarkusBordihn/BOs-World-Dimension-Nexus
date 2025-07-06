@@ -27,7 +27,7 @@ public final class ModLogger {
 
   private ModLogger() {}
 
-  public static PrefixLogger getPrefixLogger(String prefix) {
+  public static PrefixLogger getPrefixLogger(final String prefix) {
     return new PrefixLogger(LogManager.getLogger(Constants.LOG_NAME), "[" + prefix + "]");
   }
 
@@ -35,36 +35,36 @@ public final class ModLogger {
     private final Logger log;
     private final String logPrefix;
 
-    private PrefixLogger(Logger log, String logPrefix) {
+    private PrefixLogger(final Logger log, final String logPrefix) {
       this.log = log;
       this.logPrefix = logPrefix;
     }
 
-    public void info(String message, Object... params) {
+    public void info(final String message, final Object... params) {
       if (log.isInfoEnabled()) {
         log.info("{} " + message, withPrefix(params));
       }
     }
 
-    public void debug(String message, Object... params) {
+    public void debug(final String message, final Object... params) {
       if (log.isDebugEnabled()) {
         log.debug("{} " + message, withPrefix(params));
       }
     }
 
-    public void error(String message, Object... params) {
+    public void error(final String message, final Object... params) {
       if (log.isErrorEnabled()) {
         log.error("{} " + message, withPrefix(params));
       }
     }
 
-    public void warn(String message, Object... params) {
+    public void warn(final String message, final Object... params) {
       if (log.isWarnEnabled()) {
         log.warn("{} " + message, withPrefix(params));
       }
     }
 
-    private Object[] withPrefix(Object... params) {
+    private Object[] withPrefix(final Object... params) {
       Object[] all = new Object[params.length + 1];
       all[0] = this.logPrefix;
       System.arraycopy(params, 0, all, 1, params.length);

@@ -40,7 +40,7 @@ public class DimensionExporter {
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Exporter");
 
   public static boolean exportDimension(
-      MinecraftServer minecraftServer, ResourceKey<Level> dimension, File exportFile) {
+      final MinecraftServer minecraftServer, final ResourceKey<Level> dimension, File exportFile) {
     ResourceLocation resourceLocation = dimension.location();
 
     // Check if prefix is correct.
@@ -118,24 +118,5 @@ public class DimensionExporter {
       log.error("Failed to export dimension {} to {}: {}", resourceLocation, exportFile, e);
       return false;
     }
-  }
-
-  public static boolean shouldSkipFile(Path relativePath) {
-    String relName = relativePath.toString().replace("\\", "/").toLowerCase();
-
-    // Skip known files and directories that should not be imported into the dimension folder.
-    return relName.equals("dimension.info")
-        || relName.equals("dimension.json")
-        || relName.equals("session.lock")
-        || relName.equals("icon.png")
-        || relName.equals("level.dat_old")
-        || relName.startsWith("playerdata/")
-        || relName.startsWith("advancements/")
-        || relName.startsWith("stats/")
-        || relName.startsWith("poi/")
-        || relName.startsWith(".")
-        || relName.endsWith(".bak")
-        || relName.endsWith(".tmp")
-        || relName.endsWith(".swp");
   }
 }

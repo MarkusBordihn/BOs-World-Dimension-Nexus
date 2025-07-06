@@ -22,7 +22,6 @@ package de.markusbordihn.worlddimensionnexus.data.worldgen;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import java.io.IOException;
@@ -31,6 +30,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +41,8 @@ import org.apache.logging.log4j.Logger;
 public class WorldgenConfigLoader {
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
 
-  private static final Map<ChunkGeneratorType, WorldgenConfig> configs = new HashMap<>();
+  private static final Map<ChunkGeneratorType, WorldgenConfig> configs =
+      new EnumMap<>(ChunkGeneratorType.class);
 
   public static void loadConfigsFromResources() {
     log.info("Loading worldgen configurations from resources...");
@@ -56,7 +57,7 @@ public class WorldgenConfigLoader {
     }
   }
 
-  private static void loadConfigForType(ChunkGeneratorType type) {
+  private static void loadConfigForType(final ChunkGeneratorType type) {
     String resourcePath = "/data/" + Constants.MOD_ID + "/worldgen/" + type.getName() + ".json";
 
     try (InputStream inputStream = WorldgenConfigLoader.class.getResourceAsStream(resourcePath)) {
@@ -78,23 +79,26 @@ public class WorldgenConfigLoader {
     }
   }
 
-  public static void loadConfigsFromPath(Path worldgenPath) {
+  public static void loadConfigsFromPath(final Path worldgenPath) {
     if (!Files.exists(worldgenPath)) {
       log.debug("Worldgen path does not exist: {}", worldgenPath);
       return;
     }
 
+    log.info("Loading worldgen configurations from path: {}", worldgenPath);
     try {
-      Files.walk(worldgenPath)
-          .filter(Files::isRegularFile)
-          .filter(path -> path.toString().endsWith(".json"))
-          .forEach(WorldgenConfigLoader::loadConfigFromFile);
+      try (var fileStream = Files.walk(worldgenPath)) {
+        fileStream
+            .filter(Files::isRegularFile)
+            .filter(path -> path.toString().endsWith(".json"))
+            .forEach(WorldgenConfigLoader::loadConfigFromFile);
+      }
     } catch (IOException e) {
       log.error("Error scanning worldgen path: {}", e.getMessage());
     }
   }
 
-  private static void loadConfigFromFile(Path configFile) {
+  private static void loadConfigFromFile(final Path configFile) {
     try {
       String fileName = configFile.getFileName().toString();
       String typeName = fileName.substring(0, fileName.lastIndexOf('.'));
@@ -113,7 +117,8 @@ public class WorldgenConfigLoader {
     }
   }
 
-  private static WorldgenConfig parseConfig(ChunkGeneratorType type, JsonObject jsonObject) {
+  private static WorldgenConfig parseConfig(
+      final ChunkGeneratorType type, final JsonObject jsonObject) {
     Optional<ResourceLocation> noiseSettings = Optional.empty();
     Optional<ResourceLocation> biomeSource = Optional.empty();
     Map<String, String> customSettings = new HashMap<>();
@@ -142,7 +147,7 @@ public class WorldgenConfigLoader {
     return new WorldgenConfig(type, noiseSettings, biomeSource, customSettings);
   }
 
-  public static Optional<WorldgenConfig> getConfig(ChunkGeneratorType type) {
+  public static Optional<WorldgenConfig> getConfig(final ChunkGeneratorType type) {
     return Optional.ofNullable(configs.get(type));
   }
 
@@ -153,31 +158,5 @@ public class WorldgenConfigLoader {
   public static void clear() {
     configs.clear();
     log.debug("All worldgen configurations cleared");
-  }
-
-  public record WorldgenConfig(
-      ChunkGeneratorType type,
-      Optional<ResourceLocation> noiseSettings,
-      Optional<ResourceLocation> biomeSource,
-      Map<String, String> customSettings) {
-
-    public static final com.mojang.serialization.Codec<WorldgenConfig> CODEC =
-        RecordCodecBuilder.create(
-            instance ->
-                instance
-                    .group(
-                        ChunkGeneratorType.CODEC.fieldOf("type").forGetter(WorldgenConfig::type),
-                        ResourceLocation.CODEC
-                            .optionalFieldOf("noise_settings")
-                            .forGetter(WorldgenConfig::noiseSettings),
-                        ResourceLocation.CODEC
-                            .optionalFieldOf("biome_source")
-                            .forGetter(WorldgenConfig::biomeSource),
-                        com.mojang.serialization.Codec.unboundedMap(
-                                com.mojang.serialization.Codec.STRING,
-                                com.mojang.serialization.Codec.STRING)
-                            .optionalFieldOf("custom_settings", Map.of())
-                            .forGetter(WorldgenConfig::customSettings))
-                    .apply(instance, WorldgenConfig::new));
   }
 }

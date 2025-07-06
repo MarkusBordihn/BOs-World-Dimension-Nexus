@@ -30,7 +30,7 @@ public class CommandsEventHandler {
   private CommandsEventHandler() {}
 
   @SubscribeEvent
-  public static void handleRegisterCommandsEvent(RegisterCommandsEvent event) {
+  public static void handleRegisterCommandsEvent(final RegisterCommandsEvent event) {
     CommandManager.registerCommands(event.getDispatcher(), event.getBuildContext());
   }
 }

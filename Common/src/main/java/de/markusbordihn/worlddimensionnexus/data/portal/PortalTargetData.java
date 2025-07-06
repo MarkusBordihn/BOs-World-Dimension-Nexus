@@ -28,10 +28,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
-/** Portal target destination linking a source portal to its target location. */
 public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, BlockPos position) {
 
-  /** Codec for serializing and deserializing PortalTargetData objects. */
   public static final Codec<PortalTargetData> CODEC =
       RecordCodecBuilder.create(
           instance ->
@@ -46,15 +44,13 @@ public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, Bloc
                           .forGetter(PortalTargetData::position))
                   .apply(instance, PortalTargetData::new));
 
-  /** Creates a portal target in the overworld at origin. */
-  public PortalTargetData(UUID portalId) {
+  public PortalTargetData(final UUID portalId) {
     this(
         portalId,
         ResourceKey.create(Registries.DIMENSION, Level.OVERWORLD.location()),
         BlockPos.ZERO);
   }
 
-  /** Checks if this target is unlinked (null values or overworld origin). */
   public boolean isEmpty() {
     return this.portalId == null
         || this.dimension == null

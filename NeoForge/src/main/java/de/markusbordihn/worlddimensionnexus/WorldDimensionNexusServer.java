@@ -33,7 +33,7 @@ public class WorldDimensionNexusServer {
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
 
   @SuppressWarnings({"java:S1118", "java:S2440"})
-  public WorldDimensionNexusServer(IEventBus modEventBus) {
+  public WorldDimensionNexusServer(final IEventBus modEventBus) {
     log.info(
         "Initializing {} (NeoForge-Server) {} ...", Constants.MOD_NAME, FMLEnvironment.dist.name());
   }

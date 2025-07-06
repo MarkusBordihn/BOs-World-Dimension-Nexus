@@ -40,7 +40,7 @@ public class WorldDataPackResourceManager {
         "/data/world_dimension_nexus/dimensions/lobby_dimension.wdn",
       };
 
-  public static void copyDimensionFilesToWorld(MinecraftServer server) {
+  public static void copyDimensionFilesToWorld(final MinecraftServer server) {
     Path targetPath = getDimensionDataPackPath(server);
     if (!Files.exists(targetPath)) {
       log.info("Creating target directory for dimension files: {}", targetPath);
@@ -69,7 +69,7 @@ public class WorldDataPackResourceManager {
     }
   }
 
-  public static File getDataPackFile(MinecraftServer server, String fileName) {
+  public static File getDataPackFile(final MinecraftServer server, final String fileName) {
     Path filePath = getDimensionDataPackPath(server, fileName);
     if (Files.exists(filePath)) {
       return filePath.toFile();
@@ -80,7 +80,7 @@ public class WorldDataPackResourceManager {
     }
   }
 
-  public static Path getDimensionDataPackPath(MinecraftServer server) {
+  public static Path getDimensionDataPackPath(final MinecraftServer server) {
     return server
         .getWorldPath(LevelResource.ROOT)
         .resolve("datapacks")
@@ -88,7 +88,7 @@ public class WorldDataPackResourceManager {
         .resolve("dimensions");
   }
 
-  public static Path getDimensionDataPackPath(MinecraftServer server, String fileName) {
+  public static Path getDimensionDataPackPath(final MinecraftServer server, final String fileName) {
     Path dataPackPath = getDimensionDataPackPath(server);
     return dataPackPath.resolve(fileName);
   }

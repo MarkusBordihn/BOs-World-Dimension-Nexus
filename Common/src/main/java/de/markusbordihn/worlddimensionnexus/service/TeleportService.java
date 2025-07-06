@@ -34,10 +34,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
-/**
- * Service for portal teleportation effects and state management. Handles delays, cooldowns,
- * visual/audio effects, and cache cleanup.
- */
 public class TeleportService {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Teleport Service");
@@ -49,12 +45,6 @@ public class TeleportService {
 
   private TeleportService() {}
 
-  /**
-   * Apply pre-teleport effects to a player (particles and confusion effect).
-   *
-   * @param serverLevel The server level
-   * @param serverPlayer The player being teleported
-   */
   public static void applyTeleportEffects(
       final ServerLevel serverLevel, final ServerPlayer serverPlayer) {
     // Apply confusion effect
@@ -75,12 +65,6 @@ public class TeleportService {
         PortalConfig.PARTICLE_SPEED);
   }
 
-  /**
-   * Play teleportation sound at the specified position.
-   *
-   * @param serverLevel The server level
-   * @param position The position where the sound should be played
-   */
   public static void playTeleportSound(final ServerLevel serverLevel, final BlockPos position) {
     serverLevel.playSound(
         null,
@@ -91,13 +75,6 @@ public class TeleportService {
         PortalConfig.SOUND_PITCH);
   }
 
-  /**
-   * Check if a player is still standing on a portal.
-   *
-   * @param playerUUID The UUID of the player
-   * @param currentTick The current game tick
-   * @return true if the player is no longer on the portal, false otherwise
-   */
   public static boolean hasPlayerLeftPortal(final UUID playerUUID, final long currentTick) {
     Long lastTick = lastPendingTeleportTime.get(playerUUID);
     if (lastTick != null && currentTick - lastTick > 1) {
@@ -109,25 +86,11 @@ public class TeleportService {
     return false;
   }
 
-  /**
-   * Start the teleportation delay countdown for a player.
-   *
-   * @param playerUUID The UUID of the player
-   * @param currentTick The current game tick
-   * @return true if the teleport delay was started, false if already pending
-   */
   public static boolean startTeleportDelay(final UUID playerUUID, final long currentTick) {
     return pendingTeleportTime.putIfAbsent(playerUUID, currentTick + PortalConfig.TELEPORT_DELAY)
         == null;
   }
 
-  /**
-   * Check if the teleport delay has expired for a player.
-   *
-   * @param playerUUID The UUID of the player
-   * @param currentTick The current game tick
-   * @return true if the teleport delay has expired, false otherwise
-   */
   public static boolean isTeleportDelayExpired(final UUID playerUUID, final long currentTick) {
     Long teleportAt = pendingTeleportTime.get(playerUUID);
     if (teleportAt != null && currentTick >= teleportAt) {
@@ -137,13 +100,6 @@ public class TeleportService {
     return false;
   }
 
-  /**
-   * Check if a player is on teleport cooldown.
-   *
-   * @param serverPlayer The player to check
-   * @param currentTick The current game tick
-   * @return true if the player is on cooldown, false otherwise
-   */
   public static boolean isPlayerOnCooldown(
       final ServerPlayer serverPlayer, final long currentTick) {
     UUID playerUUID = serverPlayer.getUUID();
@@ -161,22 +117,11 @@ public class TeleportService {
     return false;
   }
 
-  /**
-   * Set the teleport cooldown for a player.
-   *
-   * @param playerUUID The UUID of the player
-   * @param currentTick The current game tick
-   */
   public static void setPlayerCooldown(final UUID playerUUID, final long currentTick) {
     teleportCooldown.put(playerUUID, currentTick + PortalConfig.TELEPORT_COOLDOWN);
     lastCooldownMessage.remove(playerUUID);
   }
 
-  /**
-   * Clear all teleportation state for a player.
-   *
-   * @param playerUUID The UUID of the player
-   */
   public static void clearPlayerState(final UUID playerUUID) {
     pendingTeleportTime.remove(playerUUID);
     lastPendingTeleportTime.remove(playerUUID);
@@ -184,8 +129,7 @@ public class TeleportService {
     lastCooldownMessage.remove(playerUUID);
   }
 
-  /** Clears all teleportation state data for clean world transitions. */
-  public static void clearAllState() {
+  public static void clearAllCache() {
     pendingTeleportTime.clear();
     lastPendingTeleportTime.clear();
     teleportCooldown.clear();

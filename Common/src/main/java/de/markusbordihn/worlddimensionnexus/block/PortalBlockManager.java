@@ -55,11 +55,11 @@ public class PortalBlockManager {
   private static final int PORTAL_INNER_HEIGHT = 3;
 
   public static void checkForPotentialPortals(
-      ServerLevel serverLevel,
-      BlockPos blockPos,
-      ServerPlayer serverPlayer,
-      Block block,
-      BlockState blockState) {
+      final ServerLevel serverLevel,
+      final BlockPos blockPos,
+      final ServerPlayer serverPlayer,
+      final Block block,
+      final BlockState blockState) {
     // Ignore non-corner blocks or wool blocks without color.
     boolean isCorner = block == CORNER_BLOCK_MATERIAL;
     Optional<DyeColor> woolColorOpt = WoolColor.get(blockState);
@@ -93,25 +93,25 @@ public class PortalBlockManager {
     }
   }
 
-  public static boolean isRelevantPortalBlock(Block block, BlockState blockState) {
+  public static boolean isRelevantPortalBlock(final Block block, final BlockState blockState) {
     return isRelevantPortalFrameBlock(block, blockState)
         || isRelevantInnerPortalBlock(block, blockState);
   }
 
-  public static boolean isRelevantPortalFrameBlock(Block block, BlockState blockState) {
+  public static boolean isRelevantPortalFrameBlock(final Block block, final BlockState blockState) {
     return block == CORNER_BLOCK_MATERIAL || WoolColor.get(blockState).isPresent();
   }
 
-  public static boolean isRelevantInnerPortalBlock(Block block, BlockState blockState) {
+  public static boolean isRelevantInnerPortalBlock(final Block block, final BlockState blockState) {
     return block instanceof IronBarsBlock;
   }
 
   public static void createPortal(
-      ServerLevel serverLevel,
-      ServerPlayer serverPlayer,
-      PortalInfoData portalInfo,
-      Direction.Axis portalAxis,
-      Direction currentHorizontal) {
+      final ServerLevel serverLevel,
+      final ServerPlayer serverPlayer,
+      final PortalInfoData portalInfo,
+      final Direction.Axis portalAxis,
+      final Direction currentHorizontal) {
     if (serverLevel == null
         || portalInfo == null
         || portalAxis == null
@@ -155,9 +155,6 @@ public class PortalBlockManager {
       NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
     }
 
-    // 3. Optionale: Partikeleffekte oder Animationen (hier als Hook)
-    // spawnPortalParticles(level, portalInfo.origin());
-
     // Send a message to the player who created the portal.
     if (serverPlayer != null) {
       serverPlayer.sendSystemMessage(
@@ -169,7 +166,7 @@ public class PortalBlockManager {
   }
 
   public static void destroyPortal(
-      ServerLevel level, ServerPlayer player, PortalInfoData portalInfo) {
+      final ServerLevel level, final ServerPlayer player, final PortalInfoData portalInfo) {
     if (level == null || portalInfo == null) {
       return;
     }
@@ -188,9 +185,6 @@ public class PortalBlockManager {
       }
     }
 
-    // 3. Optional: Animationen/Partikel (Hook)
-    // spawnPortalDestructionParticles(level, portalInfo.origin());
-
     // Send a message to the player who destroyed the portal.
     if (player != null) {
       player.sendSystemMessage(Component.literal("Portal destroyed!"));
@@ -200,10 +194,10 @@ public class PortalBlockManager {
   }
 
   private static void checkPotentialPortalFromCorner(
-      ServerLevel serverLevel,
-      BlockPos blockPos,
-      Direction.Axis portalAxis,
-      ServerPlayer serverPlayer) {
+      final ServerLevel serverLevel,
+      final BlockPos blockPos,
+      final Direction.Axis portalAxis,
+      final ServerPlayer serverPlayer) {
     Direction verticalDirection;
     Direction horizontalDirection;
     int verticalFrameLength;
@@ -316,60 +310,78 @@ public class PortalBlockManager {
   }
 
   private static Optional<DyeColor> checkFrameAndGetColor(
-      ServerLevel serverLevel,
-      BlockPos blockPos,
-      Direction dir1,
-      Direction dir2,
-      int innerDim1,
-      int innerDim2) {
+      final ServerLevel serverLevel,
+      final BlockPos blockPos,
+      final Direction verticalDirection,
+      final Direction horizontalDirection,
+      final int verticalFrameLength,
+      final int horizontalFrameLength) {
     DyeColor foundColor = null;
 
     // Check all four sides of the frame.
-    for (int i = 0; i < innerDim1; i++) {
+    for (int i = 0; i < verticalFrameLength; i++) {
       if (!checkWoolBlock(
-          serverLevel, blockPos.relative(dir1, i + 1).relative(dir2, 0), foundColor)) {
+          serverLevel,
+          blockPos.relative(verticalDirection, i + 1).relative(horizontalDirection, 0),
+          foundColor)) {
         return Optional.empty();
       }
       foundColor =
           updateFoundColor(
-              serverLevel, blockPos.relative(dir1, i + 1).relative(dir2, 0), foundColor);
+              serverLevel,
+              blockPos.relative(verticalDirection, i + 1).relative(horizontalDirection, 0),
+              foundColor);
     }
-    for (int i = 0; i < innerDim1; i++) {
+    for (int i = 0; i < verticalFrameLength; i++) {
       if (!checkWoolBlock(
-          serverLevel, blockPos.relative(dir1, i + 1).relative(dir2, innerDim2 + 1), foundColor)) {
+          serverLevel,
+          blockPos
+              .relative(verticalDirection, i + 1)
+              .relative(horizontalDirection, horizontalFrameLength + 1),
+          foundColor)) {
         return Optional.empty();
       }
     }
-    for (int i = 0; i < innerDim2; i++) {
+    for (int i = 0; i < horizontalFrameLength; i++) {
       if (!checkWoolBlock(
-          serverLevel, blockPos.relative(dir1, 0).relative(dir2, i + 1), foundColor)) {
+          serverLevel,
+          blockPos.relative(verticalDirection, 0).relative(horizontalDirection, i + 1),
+          foundColor)) {
         return Optional.empty();
       }
     }
-    for (int i = 0; i < innerDim2; i++) {
+    for (int i = 0; i < horizontalFrameLength; i++) {
       if (!checkWoolBlock(
-          serverLevel, blockPos.relative(dir1, innerDim1 + 1).relative(dir2, i + 1), foundColor)) {
+          serverLevel,
+          blockPos
+              .relative(verticalDirection, verticalFrameLength + 1)
+              .relative(horizontalDirection, i + 1),
+          foundColor)) {
         return Optional.empty();
       }
     }
     return Optional.ofNullable(foundColor);
   }
 
-  private static boolean checkWoolBlock(ServerLevel level, BlockPos pos, DyeColor foundColor) {
-    Optional<DyeColor> color = WoolColor.get(level.getBlockState(pos));
+  private static boolean checkWoolBlock(
+      final ServerLevel level, final BlockPos blockPos, final DyeColor foundColor) {
+    Optional<DyeColor> color = WoolColor.get(level.getBlockState(blockPos));
     return color.isPresent() && (foundColor == null || foundColor.equals(color.get()));
   }
 
-  private static DyeColor updateFoundColor(ServerLevel level, BlockPos pos, DyeColor foundColor) {
-    return foundColor == null ? WoolColor.get(level.getBlockState(pos)).orElse(null) : foundColor;
+  private static DyeColor updateFoundColor(
+      final ServerLevel level, final BlockPos blockPos, final DyeColor foundColor) {
+    return foundColor == null
+        ? WoolColor.get(level.getBlockState(blockPos)).orElse(null)
+        : foundColor;
   }
 
   private static List<BlockPos> getInnerBlockPositions(
-      BlockPos cornerPosition,
-      Direction verticalDirection,
-      Direction horizontalDirection,
-      int verticalLength,
-      int horizontalLength) {
+      final BlockPos cornerPosition,
+      final Direction verticalDirection,
+      final Direction horizontalDirection,
+      final int verticalLength,
+      final int horizontalLength) {
     List<BlockPos> innerBlockPositions = new ArrayList<>();
     BlockPos firstInnerPosition =
         cornerPosition.relative(verticalDirection).relative(horizontalDirection);
@@ -389,11 +401,11 @@ public class PortalBlockManager {
   }
 
   private static List<BlockPos> getFrameBlockPositions(
-      BlockPos corner,
-      Direction vertical,
-      Direction horizontal,
-      int verticalLength,
-      int horizontalLength) {
+      final BlockPos corner,
+      final Direction vertical,
+      final Direction horizontal,
+      final int verticalLength,
+      final int horizontalLength) {
     List<BlockPos> frameBlocks = new ArrayList<>();
 
     // Vertical Sides

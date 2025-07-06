@@ -27,7 +27,10 @@ import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManag
 import de.markusbordihn.worlddimensionnexus.saveddata.AutoTeleportDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
+import de.markusbordihn.worlddimensionnexus.saveddata.TeleportHistoryDataStorage;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import de.markusbordihn.worlddimensionnexus.utils.CacheManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -38,6 +41,8 @@ import org.apache.logging.log4j.Logger;
 public class ServerEvents {
 
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
+  private static int serverTickPostCounter = 0;
+  private static int serverTickPreCounter = 0;
 
   public static void handleServerStartingEvent(final MinecraftServer minecraftServer) {
     log.info("Server starting {} ...", minecraftServer);
@@ -59,6 +64,10 @@ public class ServerEvents {
 
     // Initialize AutoTeleport Data Storage on the Overworld.
     AutoTeleportDataStorage.init(overworld);
+
+    // Initialize TeleportHistory Data Storage on the Overworld.
+    TeleportHistoryDataStorage.init(overworld);
+    TeleportHistory.initialize(overworld);
 
     // Synchronize Dimension Data Storage to Dimension Manager and register all dimensions.
     DimensionManager.sync(minecraftServer, DimensionDataStorage.get().getDimensions());
@@ -86,5 +95,19 @@ public class ServerEvents {
 
     // Clear all static caches when server stops
     CacheManager.clearAllCaches();
+  }
+
+  public static void handleServerTickPreEvent(final MinecraftServer minecraftServer) {
+    if (serverTickPreCounter++ >= 20) {
+      // Unuseful for now, but might be used in the future.
+      serverTickPreCounter = 0;
+    }
+  }
+
+  public static void handleServerTickPostEvent(final MinecraftServer minecraftServer) {
+    if (serverTickPostCounter++ >= 20) {
+      TeleportManager.processCountdownTeleports();
+      serverTickPostCounter = 0;
+    }
   }
 }

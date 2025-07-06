@@ -35,40 +35,21 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
 
-/**
- * Service class for managing dimensions. This class handles the core business logic related to
- * dimension operations.
- */
 public class DimensionService {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Service");
 
-  private DimensionService() {
-    // Private constructor to prevent instantiation
-  }
+  private DimensionService() {}
 
-  /**
-   * Checks if a dimension exists.
-   *
-   * @param server The Minecraft server
-   * @param dimensionId The dimension ID to check
-   * @return true if the dimension exists, false otherwise
-   */
-  public static boolean dimensionExists(MinecraftServer server, ResourceKey<Level> dimensionId) {
+  public static boolean dimensionExists(
+      final MinecraftServer server, final ResourceKey<Level> dimensionId) {
     if (server == null || dimensionId == null) {
       return false;
     }
     return server.getLevel(dimensionId) != null;
   }
 
-  /**
-   * Gets a dimension server level by name.
-   *
-   * @param server The Minecraft server
-   * @param dimensionName The dimension name
-   * @return The ServerLevel or null if not found
-   */
-  public static ServerLevel getDimensionLevel(MinecraftServer server, String dimensionName) {
+  public static ServerLevel getDimensionLevel(final MinecraftServer server, String dimensionName) {
     if (server == null || dimensionName == null || dimensionName.isEmpty()) {
       return null;
     }
@@ -85,13 +66,7 @@ public class DimensionService {
     return server.getLevel(dimensionKey);
   }
 
-  /**
-   * Gets all custom dimensions from the server.
-   *
-   * @param server The Minecraft server
-   * @return A list of dimension ResourceKeys
-   */
-  public static List<ResourceKey<Level>> getCustomDimensions(MinecraftServer server) {
+  public static List<ResourceKey<Level>> getCustomDimensions(final MinecraftServer server) {
     if (server == null) {
       return new ArrayList<>();
     }
@@ -115,8 +90,8 @@ public class DimensionService {
     return customDimensions;
   }
 
-  /** Creates a backup of a dimension if needed. */
-  public static boolean backupDimensionIfNeeded(MinecraftServer server, String dimensionName) {
+  public static boolean backupDimensionIfNeeded(
+      final MinecraftServer server, final String dimensionName) {
     if (!DimensionConfig.BACKUP_DELETED_DIMENSIONS) {
       return true;
     }
@@ -142,12 +117,12 @@ public class DimensionService {
     }
   }
 
-  private static Path getDimensionPath(MinecraftServer server, String dimensionName) {
+  private static Path getDimensionPath(final MinecraftServer server, final String dimensionName) {
     Path worldPath = server.getWorldPath(LevelResource.ROOT);
     return worldPath.resolve(dimensionName);
   }
 
-  private static Path createBackupPath(MinecraftServer server, String dimensionName)
+  private static Path createBackupPath(final MinecraftServer server, final String dimensionName)
       throws IOException {
     Path worldPath = server.getWorldPath(LevelResource.ROOT);
     Path backupDir = worldPath.resolve("backups").resolve("dimensions");
@@ -162,7 +137,8 @@ public class DimensionService {
     return backupPath;
   }
 
-  private static void copyDimensionFiles(Path dimensionPath, Path backupPath) throws IOException {
+  private static void copyDimensionFiles(final Path dimensionPath, final Path backupPath)
+      throws IOException {
     try (var pathStream = Files.walk(dimensionPath)) {
       pathStream
           .filter(source -> !Files.isDirectory(source))
@@ -170,7 +146,7 @@ public class DimensionService {
     }
   }
 
-  private static void copyFile(Path source, Path dimensionPath, Path backupPath) {
+  private static void copyFile(final Path source, final Path dimensionPath, final Path backupPath) {
     try {
       Path relativePath = dimensionPath.relativize(source);
       Path target = backupPath.resolve(relativePath);
@@ -181,26 +157,19 @@ public class DimensionService {
     }
   }
 
-  /**
-   * Validates a dimension name.
-   *
-   * @param dimensionName The dimension name to validate
-   * @return true if valid, false otherwise
-   */
-  public static boolean isValidDimensionName(String dimensionName) {
+  public static boolean isValidDimensionName(final String dimensionName) {
     if (dimensionName == null || dimensionName.isEmpty()) {
       return false;
     }
 
-    // Check length
     if (dimensionName.length() > DimensionConfig.MAX_DIMENSION_NAME_LENGTH) {
       return false;
     }
 
-    // Check for valid resource location format (namespace:path)
-    String[] parts = dimensionName.split(":", 2);
-    String namespace = parts.length > 1 ? parts[0] : "minecraft";
-    String path = parts.length > 1 ? parts[1] : dimensionName;
+    // Extract namespace and path from the dimension name
+    String[] nameParts = dimensionName.split(":", 2);
+    String namespace = nameParts.length > 1 ? nameParts[0] : "minecraft";
+    String path = nameParts.length > 1 ? nameParts[1] : dimensionName;
 
     // Validate namespace and path using ResourceLocation's validation rules
     return namespace != null

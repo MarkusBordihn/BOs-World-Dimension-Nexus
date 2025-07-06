@@ -29,8 +29,6 @@ public class PortalCommand extends Command {
   private PortalCommand() {}
 
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
-    // TODO: Implement portal commands (list, create, remove, info, link, unlink)
-    // Currently placeholder implementation - full portal management commands pending
     return Commands.literal("portal");
   }
 }

@@ -21,6 +21,7 @@ package de.markusbordihn.worlddimensionnexus.levelgen;
 
 import com.mojang.serialization.MapCodec;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
+import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfig;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
 import java.util.List;
 import java.util.Map;
@@ -141,8 +142,7 @@ public class SkyblockChunkGenerator extends ChunkGenerator {
   }
 
   private void generateSpawnIsland(final ChunkAccess chunk) {
-    Optional<WorldgenConfigLoader.WorldgenConfig> config =
-        WorldgenConfigLoader.getConfig(ChunkGeneratorType.SKYBLOCK);
+    Optional<WorldgenConfig> config = WorldgenConfigLoader.getConfig(ChunkGeneratorType.SKYBLOCK);
 
     int centerX = 8;
     int centerZ = 8;
@@ -213,10 +213,7 @@ public class SkyblockChunkGenerator extends ChunkGenerator {
   }
 
   private void generateConfiguredFeatures(
-      final ChunkAccess chunk,
-      final int centerX,
-      final int centerZ,
-      final WorldgenConfigLoader.WorldgenConfig config) {
+      final ChunkAccess chunk, final int centerX, final int centerZ, final WorldgenConfig config) {
     Map<String, String> settings = config.customSettings();
   }
 

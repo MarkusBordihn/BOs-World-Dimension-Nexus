@@ -38,7 +38,6 @@ import net.minecraft.world.level.Level;
 public class PortalManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Manager");
-
   private static final Map<ResourceKey<Level>, List<PortalInfoData>> portalsPerDimension =
       new ConcurrentHashMap<>();
   private static final Map<ResourceKey<Level>, Map<Long, List<PortalInfoData>>> portalsPerChunk =
@@ -56,7 +55,7 @@ public class PortalManager {
     log.info("Synchronizing {} portals ...", portalList.size());
     clear();
 
-    // Add portals, but without updating the persistent storage.
+    // Add portals without updating persistent storage
     for (PortalInfoData portalInfo : portalList) {
       addPortal(portalInfo, false);
     }
@@ -71,14 +70,13 @@ public class PortalManager {
       return;
     }
 
-    // Add portal to the global portal set and dimension-specific list for fast access.
     log.info("Adding portal: {}", portalInfo);
     portals.add(portalInfo);
     portalsPerDimension
         .computeIfAbsent(portalInfo.dimension(), k -> new java.util.ArrayList<>())
         .add(portalInfo);
 
-    // Add portal to chunk index for fast access and easier block checks.
+    // Add to chunk index for fast access
     Map<Long, List<PortalInfoData>> chunkIndex =
         portalsPerChunk.computeIfAbsent(portalInfo.dimension(), k -> new ConcurrentHashMap<>());
     List<BlockPos> allBlocks = new ArrayList<>();
@@ -171,12 +169,6 @@ public class PortalManager {
     return portals;
   }
 
-  /**
-   * Gets all portals in the specified dimension.
-   *
-   * @param dimension The dimension key
-   * @return List of portals in that dimension (empty list if none found)
-   */
   public static List<PortalInfoData> getPortals(final ResourceKey<Level> dimension) {
     if (dimension == null) {
       return new ArrayList<>();
@@ -226,13 +218,6 @@ public class PortalManager {
     return new ChunkPos(blockPos).toLong();
   }
 
-  /**
-   * Checks if a portal target is pointing to the given portal.
-   *
-   * @param targetData The target data to check
-   * @param portal The portal to check if being targeted
-   * @return true if the target points to the given portal
-   */
   private static boolean isTargetingPortal(
       final PortalTargetData targetData, final PortalInfoData portal) {
     if (targetData == null || portal == null) {

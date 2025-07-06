@@ -17,37 +17,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.data.teleport;
+package de.markusbordihn.worlddimensionnexus.data.worldgen;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
+import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
+import java.util.Map;
+import java.util.Optional;
+import net.minecraft.resources.ResourceLocation;
 
-public record TeleportLocation(
-    ResourceKey<Level> dimension, BlockPos position, float yRot, float xRot, long timestamp) {
+public record WorldgenConfig(
+    ChunkGeneratorType type,
+    Optional<ResourceLocation> noiseSettings,
+    Optional<ResourceLocation> biomeSource,
+    Map<String, String> customSettings) {
 
-  public static final Codec<TeleportLocation> CODEC =
+  public static final Codec<WorldgenConfig> CODEC =
       RecordCodecBuilder.create(
           instance ->
               instance
                   .group(
-                      ResourceKey.codec(Registries.DIMENSION)
-                          .fieldOf("dimension")
-                          .forGetter(TeleportLocation::dimension),
-                      BlockPos.CODEC.fieldOf("position").forGetter(TeleportLocation::position),
-                      Codec.FLOAT.fieldOf("yRot").forGetter(TeleportLocation::yRot),
-                      Codec.FLOAT.fieldOf("xRot").forGetter(TeleportLocation::xRot),
-                      Codec.LONG.fieldOf("timestamp").forGetter(TeleportLocation::timestamp))
-                  .apply(instance, TeleportLocation::new));
-
-  public TeleportLocation(
-      final ResourceKey<Level> dimension,
-      final BlockPos blockPos,
-      final float yRot,
-      final float xRot) {
-    this(dimension, blockPos, yRot, xRot, System.currentTimeMillis());
-  }
+                      ChunkGeneratorType.CODEC.fieldOf("type").forGetter(WorldgenConfig::type),
+                      ResourceLocation.CODEC
+                          .optionalFieldOf("noise_settings")
+                          .forGetter(WorldgenConfig::noiseSettings),
+                      ResourceLocation.CODEC
+                          .optionalFieldOf("biome_source")
+                          .forGetter(WorldgenConfig::biomeSource),
+                      Codec.unboundedMap(Codec.STRING, Codec.STRING)
+                          .optionalFieldOf("custom_settings", Map.of())
+                          .forGetter(WorldgenConfig::customSettings))
+                  .apply(instance, WorldgenConfig::new));
 }

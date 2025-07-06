@@ -25,8 +25,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
-/** NeoForge event handler for server lifecycle events. */
 @EventBusSubscriber
 public class ServerEventHandler {
 
@@ -50,6 +50,20 @@ public class ServerEventHandler {
   public static void onServerStopping(ServerStoppingEvent event) {
     if (event.getServer() instanceof MinecraftServer minecraftServer) {
       ServerEvents.handleServerStoppingEvent(minecraftServer);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onServerTickPre(ServerTickEvent.Pre event) {
+    if (event.getServer() instanceof MinecraftServer minecraftServer) {
+      ServerEvents.handleServerTickPreEvent(minecraftServer);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onServerTickPost(ServerTickEvent.Post event) {
+    if (event.getServer() instanceof MinecraftServer minecraftServer) {
+      ServerEvents.handleServerTickPostEvent(minecraftServer);
     }
   }
 }

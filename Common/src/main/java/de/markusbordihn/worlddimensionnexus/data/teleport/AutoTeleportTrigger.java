@@ -22,49 +22,23 @@ package de.markusbordihn.worlddimensionnexus.data.teleport;
 import com.mojang.serialization.Codec;
 import net.minecraft.util.StringRepresentable;
 
-/**
- * Defines when auto-teleport should be triggered. Specifies the various conditions under which an
- * automatic teleportation can occur, ranging from one-time events to recurring schedules.
- */
 public enum AutoTeleportTrigger implements StringRepresentable {
-  /** Triggers once after the server restarts. */
   ONCE_AFTER_SERVER_RESTART("once_after_server_restart"),
-
-  /** Triggers once each time a player joins the server. */
   ONCE_PER_SERVER_JOIN("once_per_server_join"),
-
-  /** Triggers once per day. */
   ONCE_PER_DAY("once_per_day"),
-
-  /** Triggers once per week. */
   ONCE_PER_WEEK("once_per_week"),
-
-  /** Triggers once per month. */
   ONCE_PER_MONTH("once_per_month"),
-
-  /** Triggers every time the condition is checked. */
   ALWAYS("always");
 
-  /** Codec for serializing and deserializing AutoTeleportTrigger instances. */
   public static final Codec<AutoTeleportTrigger> CODEC =
       StringRepresentable.fromEnum(AutoTeleportTrigger::values);
 
   private final String name;
 
-  /**
-   * Creates a new auto-teleport trigger with the specified serialized name.
-   *
-   * @param name the serialized name used for data storage
-   */
   AutoTeleportTrigger(final String name) {
     this.name = name;
   }
 
-  /**
-   * Returns the serialized name of this trigger for data storage.
-   *
-   * @return the serialized name
-   */
   @Override
   public String getSerializedName() {
     return this.name;

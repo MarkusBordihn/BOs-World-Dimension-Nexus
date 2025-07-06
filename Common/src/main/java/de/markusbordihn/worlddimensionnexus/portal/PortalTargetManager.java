@@ -34,10 +34,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
-/**
- * Manager for portal targeting and teleportation operations. Serves as a facade that delegates
- * portal operations to appropriate service classes.
- */
 public class PortalTargetManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Target Manager");
@@ -82,7 +78,6 @@ public class PortalTargetManager {
     PortalService.clear();
   }
 
-  /** Handles delayed teleportation when a player stands on a portal. */
   public static void teleportPlayerWithDelay(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,
@@ -109,7 +104,6 @@ public class PortalTargetManager {
     }
   }
 
-  /** Immediately teleports a player to a portal's target destination. */
   public static void teleportPlayer(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,

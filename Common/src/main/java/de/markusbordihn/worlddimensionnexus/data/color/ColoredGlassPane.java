@@ -47,7 +47,7 @@ public class ColoredGlassPane {
     STAINED_GLASS_MAP.put(DyeColor.BLACK, Blocks.BLACK_STAINED_GLASS_PANE);
   }
 
-  public static Block get(DyeColor color) {
+  public static Block get(final DyeColor color) {
     return STAINED_GLASS_MAP.getOrDefault(color, Blocks.GLASS_PANE);
   }
 }

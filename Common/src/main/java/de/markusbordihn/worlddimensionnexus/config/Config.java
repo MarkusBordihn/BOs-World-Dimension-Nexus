@@ -33,13 +33,12 @@ import java.util.Set;
 public class Config {
   protected static final PrefixLogger log = ModLogger.getPrefixLogger("[Config]");
   private static boolean isLoaded = false;
-
   private static Path configPath =
       Paths.get("").toAbsolutePath().resolve("config").resolve(Constants.MOD_ID);
 
   protected Config() {}
 
-  public static void register(boolean isServer) {
+  public static void register(final boolean isServer) {
     prepareConfiguration();
     registerCommonConfig();
     if (isServer) {

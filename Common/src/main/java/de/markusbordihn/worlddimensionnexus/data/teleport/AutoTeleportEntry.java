@@ -22,15 +22,9 @@ package de.markusbordihn.worlddimensionnexus.data.teleport;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-/**
- * Represents an auto-teleport configuration entry. Stores all necessary information for an
- * automatic teleportation including the target dimension, coordinates, and the trigger that
- * activates the teleportation.
- */
 public record AutoTeleportEntry(
     String targetDimension, double x, double y, double z, AutoTeleportTrigger trigger) {
 
-  /** Codec for serializing and deserializing AutoTeleportEntry instances. */
   public static final Codec<AutoTeleportEntry> CODEC =
       RecordCodecBuilder.create(
           instance ->
