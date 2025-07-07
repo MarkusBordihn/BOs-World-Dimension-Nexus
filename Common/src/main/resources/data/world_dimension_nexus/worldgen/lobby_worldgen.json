@@ -1,0 +1,31 @@
+{
+  "type": "minecraft:flat",
+  "settings": {
+    "layers": [
+      {
+        "block": "minecraft:deepslate_bricks",
+        "height": 1
+      },
+      {
+        "block": "minecraft:deepslate_tiles",
+        "height": 1
+      },
+      {
+        "block": "minecraft:deepslate_bricks",
+        "height": 4
+      },
+      {
+        "block": "minecraft:dirt",
+        "height": 3
+      },
+      {
+        "block": "minecraft:grass_block",
+        "height": 1
+      }
+    ],
+    "biome": "minecraft:the_void",
+    "lakes": false,
+    "features": false,
+    "structure_overrides": []
+  }
+}

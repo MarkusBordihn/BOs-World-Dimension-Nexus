@@ -54,14 +54,12 @@ public class TeleportHistoryDataStorage extends SavedData {
   }
 
   public static void init(final ServerLevel serverLevel) {
-    if (instance == null) {
-      if (serverLevel == null) {
-        log.error("Cannot initialize without a valid level!");
-        return;
-      }
-      log.info("Initializing with level: {}", serverLevel);
-      instance = TeleportHistoryDataStorage.get(serverLevel);
+    if (serverLevel == null) {
+      log.error("Cannot initialize without a valid level!");
+      return;
     }
+    log.info("Initializing with level: {}", serverLevel);
+    instance = TeleportHistoryDataStorage.get(serverLevel);
   }
 
   public static TeleportHistoryDataStorage get() {
@@ -119,6 +117,11 @@ public class TeleportHistoryDataStorage extends SavedData {
     }
 
     return new TeleportHistoryDataStorage(playerHistories);
+  }
+
+  public static void clearInstance() {
+    log.info("Clearing TeleportHistoryDataStorage instance");
+    instance = null;
   }
 
   public void savePlayerHistory(final UUID playerId, final List<TeleportLocation> history) {

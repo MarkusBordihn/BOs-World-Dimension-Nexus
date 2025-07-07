@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
@@ -149,6 +150,59 @@ public class DimensionManager {
 
     log.info("Created and loaded new dimension: {}", dimensionInfo.getDimensionKey().location());
     return newLevel;
+  }
+
+  public static ServerLevel createNewDimensionWithJsonSupport(
+      final DimensionInfoData dimensionInfo, final boolean updateStorage) {
+
+    Optional<LevelStem> jsonLevelStem = tryLoadLevelStemFromJson(dimensionInfo);
+    LevelStem levelStem;
+    if (jsonLevelStem.isPresent()) {
+      levelStem = jsonLevelStem.get();
+      log.info(
+          "Using complete LevelStem from JSON for dimension: {}",
+          dimensionInfo.getDimensionKey().location());
+    } else {
+      ChunkGenerator chunkGenerator = dimensionInfo.getChunkGenerator(minecraftServer);
+      levelStem =
+          new LevelStem(dimensionInfo.getDimensionTypeHolder(minecraftServer), chunkGenerator);
+    }
+
+    ServerLevel newLevel = buildServerLevel(dimensionInfo, levelStem);
+    registerDimension(dimensionInfo, newLevel, updateStorage);
+
+    log.info("Created and loaded new dimension: {}", dimensionInfo.getDimensionKey().location());
+    return newLevel;
+  }
+
+  private static Optional<LevelStem> tryLoadLevelStemFromJson(
+      final DimensionInfoData dimensionInfo) {
+    try {
+      String dimensionJsonPath =
+          String.format(
+              "data/%s/dimension/%s_dimension.json",
+              Constants.MOD_ID, dimensionInfo.chunkGeneratorType().getName());
+      Path resourcePath = tryGetResourcePath(dimensionJsonPath);
+      if (resourcePath != null && Files.exists(resourcePath)) {
+        return Optional.of(loadLevelStem(resourcePath, minecraftServer.registryAccess()));
+      }
+
+    } catch (Exception e) {
+      log.debug(
+          "Could not load LevelStem from JSON for {}: {}",
+          dimensionInfo.chunkGeneratorType().getName(),
+          e.getMessage());
+    }
+
+    return Optional.empty();
+  }
+
+  private static Path tryGetResourcePath(final String resourcePath) {
+    try {
+      return null;
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   private static ServerLevel buildServerLevel(
@@ -329,12 +383,10 @@ public class DimensionManager {
       return false;
     }
 
-    // Check our managed dimensions first
     if (getDimensionInfoData(dimension) != null) {
       return true;
     }
 
-    // Check vanilla and other mod dimensions
     try {
       ResourceLocation dimensionResourceLocation = ResourceLocation.parse(dimension);
       ServerLevel level =

@@ -47,14 +47,12 @@ public class DimensionDataStorage extends SavedData {
   }
 
   public static void init(final ServerLevel serverLevel) {
-    if (instance == null) {
-      if (serverLevel == null) {
-        log.error("Cannot initialize without a valid level!");
-        return;
-      }
-      log.info("Initializing with level: {}", serverLevel);
-      instance = DimensionDataStorage.get(serverLevel);
+    if (serverLevel == null) {
+      log.error("Cannot initialize without a valid level!");
+      return;
     }
+    log.info("Initializing with level: {}", serverLevel);
+    instance = DimensionDataStorage.get(serverLevel);
   }
 
   public static DimensionDataStorage get() {
@@ -87,6 +85,11 @@ public class DimensionDataStorage extends SavedData {
             .orElseGet(ArrayList::new);
 
     return new DimensionDataStorage(new ArrayList<>(dimensions));
+  }
+
+  public static void clearInstance() {
+    log.info("Clearing DimensionDataStorage instance");
+    instance = null;
   }
 
   public void addDimension(final DimensionInfoData dimensionInfoData) {

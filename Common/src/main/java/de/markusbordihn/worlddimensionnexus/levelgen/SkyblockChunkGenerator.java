@@ -24,12 +24,12 @@ import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfig;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -40,10 +40,13 @@ import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.FixedBiomeSource;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -215,7 +218,7 @@ public class SkyblockChunkGenerator extends ChunkGenerator {
 
   private void generateConfiguredFeatures(
       final ChunkAccess chunk, final int centerX, final int centerZ, final WorldgenConfig config) {
-    Map<String, String> settings = config.customSettings();
+    config.customSettings();
   }
 
   private void generateSimpleTree(final ChunkAccess chunk, final BlockPos pos) {
@@ -244,37 +247,34 @@ public class SkyblockChunkGenerator extends ChunkGenerator {
   }
 
   private void scheduleBlockEntityCreation(final ChunkAccess chunk, final BlockPos pos) {
-    if (chunk instanceof net.minecraft.world.level.chunk.LevelChunk levelChunk) {
+    if (chunk instanceof LevelChunk levelChunk) {
       createBlockEntityImmediate(levelChunk, pos);
     }
     // For proto-chunks, block entities will be handled by NetworkHandler during teleportation
   }
 
-  private void createBlockEntityImmediate(
-      final net.minecraft.world.level.chunk.LevelChunk levelChunk, final BlockPos pos) {
+  private void createBlockEntityImmediate(final LevelChunk levelChunk, final BlockPos pos) {
     var level = levelChunk.getLevel();
     var blockState = levelChunk.getBlockState(pos);
 
     // Get the block entity type from the block state
-    if (blockState.getBlock() instanceof net.minecraft.world.level.block.EntityBlock entityBlock) {
+    if (blockState.getBlock() instanceof EntityBlock entityBlock) {
       var blockEntity = entityBlock.newBlockEntity(pos, blockState);
       if (blockEntity != null) {
         levelChunk.setBlockEntity(blockEntity);
 
-        if (blockEntity
-            instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chestEntity) {
+        if (blockEntity instanceof ChestBlockEntity chestEntity) {
           populateStarterChest(chestEntity);
         }
 
-        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        if (level instanceof ServerLevel serverLevel) {
           serverLevel.getChunkSource().blockChanged(pos);
         }
       }
     }
   }
 
-  private void populateStarterChest(
-      final net.minecraft.world.level.block.entity.ChestBlockEntity chestEntity) {
+  private void populateStarterChest(final ChestBlockEntity chestEntity) {
     chestEntity.setItem(
         0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.LAVA_BUCKET));
     chestEntity.setItem(

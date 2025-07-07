@@ -54,6 +54,12 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getDefault(
       final MinecraftServer server, final ChunkGeneratorType type) {
+    Optional<ChunkGenerator> jsonChunkGenerator =
+        JsonChunkGeneratorLoader.loadFromJson(server, type);
+    if (jsonChunkGenerator.isPresent()) {
+      return jsonChunkGenerator.get();
+    }
+
     return switch (type) {
       case FLAT -> getFlatChunkGenerator(server);
       case NOISE -> getNoiseChunkGenerator(server, type);
@@ -70,10 +76,17 @@ public class ChunkGeneratorHelper {
 
   public static ChunkGenerator getCustomChunkGenerator(
       final MinecraftServer server, final ChunkGeneratorType type) {
+    Optional<ChunkGenerator> jsonChunkGenerator =
+        JsonChunkGeneratorLoader.loadFromJson(server, type);
+    if (jsonChunkGenerator.isPresent()) {
+      return jsonChunkGenerator.get();
+    }
+
     Optional<WorldgenConfig> worldgenConfiguration = WorldgenConfigLoader.getConfig(type);
     if (worldgenConfiguration.isPresent()) {
       return createChunkGeneratorFromConfig(server, worldgenConfiguration.get());
     }
+
     return getFlatChunkGenerator(server);
   }
 
@@ -123,7 +136,7 @@ public class ChunkGeneratorHelper {
             new FlatLayerInfo(1, Blocks.BARRIER),
             new FlatLayerInfo(3, Blocks.STONE),
             new FlatLayerInfo(1, Blocks.STONE_BRICKS)),
-        Biomes.PLAINS,
+        Biomes.THE_VOID,
         Collections.emptyList(),
         false);
   }
@@ -146,7 +159,6 @@ public class ChunkGeneratorHelper {
   }
 
   public static ChunkGenerator getFloatingIslandsChunkGenerator(final MinecraftServer server) {
-    // Nutze End-ähnliche Einstellungen für schwebende Inseln
     return getNoiseChunkGenerator(
         server,
         ChunkGeneratorType.FLOATING_ISLANDS,
@@ -178,7 +190,6 @@ public class ChunkGeneratorHelper {
       final ResourceKey<Biome> biomeKey,
       final List<ResourceKey<StructureSet>> structureKeys,
       final boolean lakes) {
-    // Get the necessary holders.
     HolderGetter<Biome> biomeGetter = server.registryAccess().lookupOrThrow(Registries.BIOME);
     HolderGetter<StructureSet> structureGetter =
         server.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET);
@@ -188,7 +199,6 @@ public class ChunkGeneratorHelper {
         HolderSet.direct(
             structureKeys.stream().map(structureGetter::getOrThrow).toArray(Holder[]::new));
 
-    // Create the flat level generator settings with the provided layers, biome, and structures.
     FlatLevelGeneratorSettings settings =
         new FlatLevelGeneratorSettings(
             Optional.of(structures),

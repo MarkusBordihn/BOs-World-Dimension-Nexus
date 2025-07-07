@@ -53,20 +53,17 @@ public class PortalDataStorage extends SavedData {
         "Creating new PortalDataStorage with {} portals and {} targets ...",
         portals.size(),
         targets.size());
-    // Ensure the lists are mutable by creating new ArrayList instances
     this.portalList = new ArrayList<>(portals);
     this.targetList = new ArrayList<>(targets);
   }
 
   public static void init(final ServerLevel serverLevel) {
-    if (instance == null) {
-      if (serverLevel == null) {
-        log.error("Cannot initialize without a valid level!");
-        return;
-      }
-      log.info("Initializing with level: {}", serverLevel);
-      instance = PortalDataStorage.get(serverLevel);
+    if (serverLevel == null) {
+      log.error("Cannot initialize without a valid level!");
+      return;
     }
+    log.info("Initializing with level: {}", serverLevel);
+    instance = PortalDataStorage.get(serverLevel);
   }
 
   public static PortalDataStorage get() {
@@ -108,21 +105,9 @@ public class PortalDataStorage extends SavedData {
     return new PortalDataStorage(loadedPortals, loadedTargets);
   }
 
-  @Override
-  public CompoundTag save(final CompoundTag compoundTag, final Provider provider) {
-    PortalInfoData.CODEC
-        .listOf()
-        .encodeStart(NbtOps.INSTANCE, portalList)
-        .resultOrPartial(error -> log.error("Failed to encode portal data: {}", error))
-        .ifPresent(tag -> compoundTag.put(PORTAL_TAG, tag));
-
-    PortalTargetData.CODEC
-        .listOf()
-        .encodeStart(NbtOps.INSTANCE, targetList)
-        .resultOrPartial(error -> log.error("Failed to encode target data: {}", error))
-        .ifPresent(tag -> compoundTag.put(TARGETS_TAG, tag));
-
-    return compoundTag;
+  public static void clearInstance() {
+    log.info("Clearing PortalDataStorage instance");
+    instance = null;
   }
 
   public void addPortal(final PortalInfoData portal) {
@@ -180,5 +165,22 @@ public class PortalDataStorage extends SavedData {
     targetList.clear();
     log.info("Cleared all portal and target data");
     this.setDirty();
+  }
+
+  @Override
+  public CompoundTag save(final CompoundTag compoundTag, final Provider provider) {
+    PortalInfoData.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, portalList)
+        .resultOrPartial(error -> log.error("Failed to encode portal data: {}", error))
+        .ifPresent(tag -> compoundTag.put(PORTAL_TAG, tag));
+
+    PortalTargetData.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, targetList)
+        .resultOrPartial(error -> log.error("Failed to encode target data: {}", error))
+        .ifPresent(tag -> compoundTag.put(TARGETS_TAG, tag));
+
+    return compoundTag;
   }
 }

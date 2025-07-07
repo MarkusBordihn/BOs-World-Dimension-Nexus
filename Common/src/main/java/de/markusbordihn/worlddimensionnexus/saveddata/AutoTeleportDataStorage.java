@@ -60,14 +60,12 @@ public class AutoTeleportDataStorage extends SavedData {
   }
 
   public static void init(final ServerLevel serverLevel) {
-    if (instance == null) {
-      if (serverLevel == null) {
-        log.error("Cannot initialize without a valid level!");
-        return;
-      }
-      log.info("Initializing with level: {}", serverLevel);
-      instance = AutoTeleportDataStorage.get(serverLevel);
+    if (serverLevel == null) {
+      log.error("Cannot initialize without a valid level!");
+      return;
     }
+    log.info("Initializing with level: {}", serverLevel);
+    instance = AutoTeleportDataStorage.get(serverLevel);
   }
 
   public static AutoTeleportDataStorage get() {
@@ -112,23 +110,9 @@ public class AutoTeleportDataStorage extends SavedData {
     return new AutoTeleportDataStorage(loadedPlayerData, loadedGlobalRules);
   }
 
-  @Override
-  public CompoundTag save(final CompoundTag compoundTag, final Provider provider) {
-    PlayerAutoTeleportData.CODEC
-        .listOf()
-        .encodeStart(NbtOps.INSTANCE, playerDataList)
-        .resultOrPartial(
-            error -> log.error("Failed to encode player auto-teleport data: {}", error))
-        .ifPresent(tag -> compoundTag.put(PLAYER_DATA_TAG, tag));
-
-    AutoTeleportEntry.CODEC
-        .listOf()
-        .encodeStart(NbtOps.INSTANCE, globalRulesList)
-        .resultOrPartial(
-            error -> log.error("Failed to encode global auto-teleport rules: {}", error))
-        .ifPresent(tag -> compoundTag.put(GLOBAL_RULES_TAG, tag));
-
-    return compoundTag;
+  public static void clearInstance() {
+    log.info("Clearing AutoTeleportDataStorage instance");
+    instance = null;
   }
 
   public void setAutoTeleport(final UUID playerId, final AutoTeleportEntry entry) {
@@ -258,5 +242,24 @@ public class AutoTeleportDataStorage extends SavedData {
     globalRulesList.clear();
     log.info("Cleared all auto-teleport data");
     this.setDirty();
+  }
+
+  @Override
+  public CompoundTag save(final CompoundTag compoundTag, final Provider provider) {
+    PlayerAutoTeleportData.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, playerDataList)
+        .resultOrPartial(
+            error -> log.error("Failed to encode player auto-teleport data: {}", error))
+        .ifPresent(tag -> compoundTag.put(PLAYER_DATA_TAG, tag));
+
+    AutoTeleportEntry.CODEC
+        .listOf()
+        .encodeStart(NbtOps.INSTANCE, globalRulesList)
+        .resultOrPartial(
+            error -> log.error("Failed to encode global auto-teleport rules: {}", error))
+        .ifPresent(tag -> compoundTag.put(GLOBAL_RULES_TAG, tag));
+
+    return compoundTag;
   }
 }
