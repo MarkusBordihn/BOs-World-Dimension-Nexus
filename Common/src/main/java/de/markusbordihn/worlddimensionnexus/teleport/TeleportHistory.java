@@ -108,6 +108,26 @@ public class TeleportHistory {
     return playerHistory.getOrDefault(playerId, new ArrayList<>());
   }
 
+  public static String getFormattedPlayerHistory(final UUID playerId) {
+    List<TeleportLocation> history = getPlayerHistory(playerId);
+    if (history.isEmpty()) {
+      return "No teleport history found.";
+    }
+
+    StringBuilder historyText = new StringBuilder("Teleport History:\n");
+    for (int i = 0; i < history.size(); i++) {
+      TeleportLocation location = history.get(i);
+      String dimensionName = location.dimension().location().toString();
+      BlockPos pos = location.position();
+      historyText.append(
+          String.format(
+              "%d. %s at (%d, %d, %d)\n",
+              i + 1, dimensionName, pos.getX(), pos.getY(), pos.getZ()));
+    }
+
+    return historyText.toString();
+  }
+
   public static void clearPlayerHistory(final UUID playerId) {
     playerHistory.remove(playerId);
     if (storageLevel != null) {

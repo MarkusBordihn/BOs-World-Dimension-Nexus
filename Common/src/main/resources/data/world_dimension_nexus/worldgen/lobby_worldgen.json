@@ -23,7 +23,7 @@
         "height": 1
       }
     ],
-    "biome": "minecraft:the_void",
+    "biome": "world_dimension_nexus:lobby_biome",
     "lakes": false,
     "features": false,
     "structure_overrides": []

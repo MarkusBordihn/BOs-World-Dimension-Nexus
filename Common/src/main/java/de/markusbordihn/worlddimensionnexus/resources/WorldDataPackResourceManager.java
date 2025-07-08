@@ -25,9 +25,18 @@ import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -35,10 +44,53 @@ public class WorldDataPackResourceManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Resource Manager");
 
-  private static final String[] worldDimensionFiles =
-      new String[] {
-        "/data/world_dimension_nexus/dimensions/lobby_dimension.wdn",
-      };
+  private static final String DIMENSIONS_RESOURCE_PATH = "/data/world_dimension_nexus/dimensions";
+
+  /**
+   * Gets all dimension files (.wdn) from the resources directory dynamically.
+   *
+   * @return List of resource paths for dimension files
+   */
+  private static List<String> getDimensionResourceFiles() {
+    List<String> dimensionFiles = new ArrayList<>();
+
+    try {
+      java.net.URL resourceUrl = WorldDataPackResourceManager.class.getResource(DIMENSIONS_RESOURCE_PATH);
+      if (resourceUrl == null) {
+        log.warn("Dimensions resource path not found: {}", DIMENSIONS_RESOURCE_PATH);
+        return dimensionFiles;
+      }
+
+      URI resourceUri = resourceUrl.toURI();
+
+      if (resourceUri.getScheme().equals("jar")) {
+        // Running from JAR file
+        try (FileSystem fileSystem = FileSystems.newFileSystem(resourceUri, Collections.emptyMap())) {
+          Path dimensionsPath = fileSystem.getPath(DIMENSIONS_RESOURCE_PATH);
+          if (Files.exists(dimensionsPath)) {
+            try (Stream<Path> files = Files.list(dimensionsPath)) {
+              files.filter(path -> path.toString().endsWith(".wdn"))
+                  .forEach(path -> dimensionFiles.add(DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
+            }
+          }
+        }
+      } else {
+        // Running from development environment
+        Path dimensionsPath = Paths.get(resourceUri);
+        if (Files.exists(dimensionsPath)) {
+          try (Stream<Path> files = Files.list(dimensionsPath)) {
+            files.filter(path -> path.toString().endsWith(".wdn"))
+                .forEach(path -> dimensionFiles.add(DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
+          }
+        }
+      }
+    } catch (URISyntaxException | IOException e) {
+      log.error("Failed to load dimension files from resources: {}", e.getMessage());
+    }
+
+    log.info("Found {} dimension files: {}", dimensionFiles.size(), dimensionFiles);
+    return dimensionFiles;
+  }
 
   public static void copyDimensionFilesToWorld(final MinecraftServer server) {
     Path targetPath = getDimensionDataPackPath(server);
@@ -52,6 +104,7 @@ public class WorldDataPackResourceManager {
       }
     }
 
+    List<String> worldDimensionFiles = getDimensionResourceFiles();
     for (String resourcePath : worldDimensionFiles) {
       String fileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
       Path fileTarget = targetPath.resolve(fileName);

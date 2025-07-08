@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:flat",
+  "settings": {
+    "bedrock_roof_position": -10,
+    "bedrock_floor_position": 0,
+    "layers": [
+      {
+        "block": "minecraft:bedrock",
+        "height": 2
+      },
+      {
+        "block": "minecraft:stone",
+        "height": 6
+      },
+      {
+        "block": "minecraft:dirt",
+        "height": 2
+      },
+      {
+        "block": "minecraft:sand",
+        "height": 8
+      },
+      {
+        "block": "minecraft:water",
+        "height": 32
+      }
+    ],
+    "biome": "world_dimension_nexus:water_biome",
+    "lakes": false,
+    "features": true,
+    "structure_overrides": []
+  }
+}

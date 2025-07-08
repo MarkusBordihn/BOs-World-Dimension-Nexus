@@ -30,23 +30,13 @@ public class GameModeHistory {
   private GameModeHistory() {}
 
   public static void applyGameTypeForPlayer(
-      final ServerPlayer player,
-      final ResourceKey<Level> dimension,
-      final GameType dimensionGameType) {
-
-    if (player.hasPermissions(2)) {
-      return;
-    }
+      final ServerPlayer player, final GameType dimensionGameType) {
 
     player.setGameMode(dimensionGameType);
   }
 
   public static void restoreGameTypeFromHistory(
       final ServerPlayer player, final ResourceKey<Level> targetDimension) {
-
-    if (player.hasPermissions(2)) {
-      return;
-    }
 
     GameType previousGameType =
         TeleportHistory.getLastGameTypeForDimension(player.getUUID(), targetDimension);

@@ -43,7 +43,7 @@ import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
 
 public record DimensionInfoData(
-    ResourceLocation resourceLocation,
+    ResourceKey<Level> dimensionKey,
     ResourceKey<DimensionType> dimensionTypeKey,
     String displayName,
     String description,
@@ -53,7 +53,7 @@ public record DimensionInfoData(
     BlockPos spawnPoint,
     GameType gameType) {
 
-  public static final String RESOURCE_LOCATION_TAG = "resourceLocation";
+  public static final String DIMENSION_KEY_TAG = "dimensionKey";
   public static final String TYPE_TAG = "type";
   public static final String DISPLAY_NAME_TAG = "displayName";
   public static final String DESCRIPTION_TAG = "description";
@@ -62,6 +62,7 @@ public record DimensionInfoData(
   public static final String HOT_INJECTION_SYNC_TAG = "requiresHotInjectionSync";
   public static final String SPAWN_POINT_TAG = "spawnPoint";
   public static final String GAME_TYPE_TAG = "gameType";
+
   public static final String DEFAULT_TYPE = "minecraft:overworld";
   public static final String DEFAULT_EMPTY_STRING = "";
   public static final boolean DEFAULT_IS_CUSTOM = true;
@@ -71,14 +72,15 @@ public record DimensionInfoData(
   public static final GameType DEFAULT_GAME_TYPE = GameType.SURVIVAL;
   public static final ResourceKey<DimensionType> DEFAULT_DIMENSION_TYPE_KEY =
       BuiltinDimensionTypes.OVERWORLD;
+
   public static final Codec<DimensionInfoData> CODEC =
       RecordCodecBuilder.create(
           instance ->
               instance
                   .group(
-                      ResourceLocation.CODEC
-                          .fieldOf(RESOURCE_LOCATION_TAG)
-                          .forGetter(DimensionInfoData::resourceLocation),
+                      ResourceKey.codec(Registries.DIMENSION)
+                          .fieldOf(DIMENSION_KEY_TAG)
+                          .forGetter(DimensionInfoData::dimensionKey),
                       ResourceKey.codec(Registries.DIMENSION_TYPE)
                           .optionalFieldOf(TYPE_TAG, DEFAULT_DIMENSION_TYPE_KEY)
                           .forGetter(DimensionInfoData::dimensionTypeKey),
@@ -108,19 +110,18 @@ public record DimensionInfoData(
 
   public static DimensionInfoData forImport(
       final String namespace, final String path, final String type) {
-    ResourceKey<DimensionType> dimensionTypeKey;
+    ResourceKey<DimensionType> dimensionTypeKey = DEFAULT_DIMENSION_TYPE_KEY;
+
     try {
-      dimensionTypeKey = createDimensionTypeKey(type);
+      ResourceLocation typeLocation = ResourceLocation.parse(type);
+      dimensionTypeKey = ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
     } catch (Exception e) {
-      log.warn(
-          "Failed to parse dimension type for import '{}', using default: {}",
-          type,
-          e.getMessage());
-      dimensionTypeKey = DEFAULT_DIMENSION_TYPE_KEY;
+      log.warn("Failed to parse dimension type '{}', using default: {}", type, e.getMessage());
     }
 
     return new DimensionInfoData(
-        ResourceLocation.fromNamespaceAndPath(namespace, path),
+        ResourceKey.create(
+            Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(namespace, path)),
         dimensionTypeKey,
         DEFAULT_EMPTY_STRING,
         DEFAULT_EMPTY_STRING,
@@ -137,17 +138,17 @@ public record DimensionInfoData(
 
   public static DimensionInfoData fromDimensionNameAndType(
       final String dimensionName, final ChunkGeneratorType chunkGeneratorType) {
-    ResourceLocation resourceLocation;
-    if (dimensionName.contains(":")) {
-      resourceLocation = ResourceLocation.parse(dimensionName);
-    } else {
-      resourceLocation = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionName);
-    }
+    ResourceLocation dimensionLocation =
+        dimensionName.contains(":")
+            ? ResourceLocation.parse(dimensionName)
+            : ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionName);
 
+    ResourceLocation typeLocation = ResourceLocation.parse(chunkGeneratorType.getDimensionType());
     ResourceKey<DimensionType> dimensionTypeKey =
-        createDimensionTypeKey(chunkGeneratorType.getDimensionType());
+        ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
+
     return new DimensionInfoData(
-        resourceLocation,
+        ResourceKey.create(Registries.DIMENSION, dimensionLocation),
         dimensionTypeKey,
         dimensionName,
         DEFAULT_EMPTY_STRING,
@@ -158,63 +159,15 @@ public record DimensionInfoData(
         DEFAULT_GAME_TYPE);
   }
 
-  private static ResourceKey<DimensionType> createDimensionTypeKey(
-      final String dimensionTypeString) {
-    ResourceLocation typeLocation = ResourceLocation.parse(dimensionTypeString);
-    return ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
-  }
-
   public static DimensionInfoData fromJson(final JsonObject jsonObject) {
-    ChunkGeneratorType chunkGeneratorType = DEFAULT_CHUNK_GENERATOR_TYPE;
-    if (jsonObject.has(CHUNK_GENERATOR_TYPE_TAG)) {
-      try {
-        chunkGeneratorType =
-            ChunkGeneratorType.valueOf(
-                jsonObject.get(CHUNK_GENERATOR_TYPE_TAG).getAsString().toUpperCase());
-      } catch (IllegalArgumentException e) {
-        // Use default if invalid type
-      }
-    }
-
-    BlockPos spawnPoint = DEFAULT_SPAWN_POINT;
-    if (jsonObject.has(SPAWN_POINT_TAG)) {
-      try {
-        String[] coords = jsonObject.get(SPAWN_POINT_TAG).getAsString().split(",");
-        if (coords.length == 3) {
-          int x = Integer.parseInt(coords[0].trim());
-          int y = Integer.parseInt(coords[1].trim());
-          int z = Integer.parseInt(coords[2].trim());
-          spawnPoint = new BlockPos(x, y, z);
-        }
-      } catch (Exception e) {
-        // Use default if invalid BlockPos
-      }
-    }
-
-    GameType gameType = DEFAULT_GAME_TYPE;
-    if (jsonObject.has(GAME_TYPE_TAG)) {
-      try {
-        String gameTypeString = jsonObject.get(GAME_TYPE_TAG).getAsString();
-        gameType = GameType.byName(gameTypeString, DEFAULT_GAME_TYPE);
-      } catch (Exception e) {
-        // Use default if invalid gameType
-      }
-    }
-
-    ResourceKey<DimensionType> dimensionTypeKey = DEFAULT_DIMENSION_TYPE_KEY;
-    if (jsonObject.has(TYPE_TAG)) {
-      try {
-        String typeString = jsonObject.get(TYPE_TAG).getAsString();
-        dimensionTypeKey = createDimensionTypeKey(typeString);
-      } catch (Exception e) {
-        log.warn("Failed to parse dimension type from JSON: {}, using default", e.getMessage());
-      }
-    }
+    ChunkGeneratorType chunkGeneratorType = parseChunkGeneratorType(jsonObject);
+    BlockPos spawnPoint = parseSpawnPoint(jsonObject);
+    GameType gameType = parseGameType(jsonObject);
+    ResourceKey<DimensionType> dimensionTypeKey = parseDimensionTypeKey(jsonObject);
+    ResourceKey<Level> dimensionKey = parseDimensionKey(jsonObject);
 
     return new DimensionInfoData(
-        jsonObject.has(RESOURCE_LOCATION_TAG)
-            ? ResourceLocation.parse(jsonObject.get(RESOURCE_LOCATION_TAG).getAsString())
-            : ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, DEFAULT_EMPTY_STRING),
+        dimensionKey,
         dimensionTypeKey,
         jsonObject.has(DISPLAY_NAME_TAG)
             ? jsonObject.get(DISPLAY_NAME_TAG).getAsString()
@@ -233,9 +186,88 @@ public record DimensionInfoData(
         gameType);
   }
 
+  private static ChunkGeneratorType parseChunkGeneratorType(final JsonObject jsonObject) {
+    if (!jsonObject.has(CHUNK_GENERATOR_TYPE_TAG)) {
+      return DEFAULT_CHUNK_GENERATOR_TYPE;
+    }
+
+    try {
+      return ChunkGeneratorType.valueOf(
+          jsonObject.get(CHUNK_GENERATOR_TYPE_TAG).getAsString().toUpperCase());
+    } catch (IllegalArgumentException e) {
+      return DEFAULT_CHUNK_GENERATOR_TYPE;
+    }
+  }
+
+  private static BlockPos parseSpawnPoint(final JsonObject jsonObject) {
+    if (!jsonObject.has(SPAWN_POINT_TAG)) {
+      return DEFAULT_SPAWN_POINT;
+    }
+
+    try {
+      String[] coordinates = jsonObject.get(SPAWN_POINT_TAG).getAsString().split(",");
+      if (coordinates.length == 3) {
+        int x = Integer.parseInt(coordinates[0].trim());
+        int y = Integer.parseInt(coordinates[1].trim());
+        int z = Integer.parseInt(coordinates[2].trim());
+        return new BlockPos(x, y, z);
+      }
+    } catch (Exception e) {
+      // Fall through to default
+    }
+
+    return DEFAULT_SPAWN_POINT;
+  }
+
+  private static GameType parseGameType(final JsonObject jsonObject) {
+    if (!jsonObject.has(GAME_TYPE_TAG)) {
+      return DEFAULT_GAME_TYPE;
+    }
+
+    try {
+      String gameTypeString = jsonObject.get(GAME_TYPE_TAG).getAsString();
+      return GameType.byName(gameTypeString, DEFAULT_GAME_TYPE);
+    } catch (Exception e) {
+      return DEFAULT_GAME_TYPE;
+    }
+  }
+
+  private static ResourceKey<DimensionType> parseDimensionTypeKey(final JsonObject jsonObject) {
+    if (!jsonObject.has(TYPE_TAG)) {
+      return DEFAULT_DIMENSION_TYPE_KEY;
+    }
+
+    try {
+      String typeString = jsonObject.get(TYPE_TAG).getAsString();
+      ResourceLocation typeLocation = ResourceLocation.parse(typeString);
+      return ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
+    } catch (Exception e) {
+      log.warn("Failed to parse dimension type from JSON: {}, using default", e.getMessage());
+      return DEFAULT_DIMENSION_TYPE_KEY;
+    }
+  }
+
+  private static ResourceKey<Level> parseDimensionKey(final JsonObject jsonObject) {
+    if (!jsonObject.has(DIMENSION_KEY_TAG)) {
+      throw new IllegalArgumentException("Missing required field: " + DIMENSION_KEY_TAG);
+    }
+
+    try {
+      String dimensionKeyString = jsonObject.get(DIMENSION_KEY_TAG).getAsString();
+      if (dimensionKeyString.trim().isEmpty()) {
+        throw new IllegalArgumentException("Dimension key cannot be empty");
+      }
+
+      ResourceLocation dimensionLocation = ResourceLocation.parse(dimensionKeyString);
+      return ResourceKey.create(Registries.DIMENSION, dimensionLocation);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to parse dimension key: " + e.getMessage(), e);
+    }
+  }
+
   public JsonObject toJson() {
     JsonObject json = new JsonObject();
-    json.addProperty(RESOURCE_LOCATION_TAG, resourceLocation.toString());
+    json.addProperty(DIMENSION_KEY_TAG, dimensionKey.location().toString());
     json.addProperty(TYPE_TAG, dimensionTypeKey.location().toString());
     json.addProperty(DISPLAY_NAME_TAG, displayName);
     json.addProperty(DESCRIPTION_TAG, description);
@@ -249,7 +281,7 @@ public record DimensionInfoData(
   }
 
   public ResourceLocation getResourceLocation() {
-    return resourceLocation;
+    return dimensionKey.location();
   }
 
   public ResourceLocation getTypeResourceLocation() {
@@ -257,12 +289,12 @@ public record DimensionInfoData(
   }
 
   public ResourceKey<Level> getDimensionKey() {
-    return ResourceKey.create(Registries.DIMENSION, getResourceLocation());
+    return dimensionKey;
   }
 
   public DimensionInfoData withoutHotInjectionSync() {
     return new DimensionInfoData(
-        resourceLocation,
+        dimensionKey,
         dimensionTypeKey,
         displayName,
         description,
@@ -275,7 +307,7 @@ public record DimensionInfoData(
 
   public DimensionInfoData withSpawnPoint(final BlockPos newSpawnPoint) {
     return new DimensionInfoData(
-        resourceLocation,
+        dimensionKey,
         dimensionTypeKey,
         displayName,
         description,
@@ -288,7 +320,7 @@ public record DimensionInfoData(
 
   public DimensionInfoData withGameType(final GameType newGameType) {
     return new DimensionInfoData(
-        resourceLocation,
+        dimensionKey,
         dimensionTypeKey,
         displayName,
         description,

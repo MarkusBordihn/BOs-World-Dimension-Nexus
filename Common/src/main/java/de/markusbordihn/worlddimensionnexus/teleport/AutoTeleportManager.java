@@ -19,6 +19,7 @@
 
 package de.markusbordihn.worlddimensionnexus.teleport;
 
+import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportEntry;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
@@ -30,9 +31,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 public class AutoTeleportManager {
@@ -233,16 +238,23 @@ public class AutoTeleportManager {
   }
 
   private static void executeTeleport(final ServerPlayer player, final AutoTeleportEntry entry) {
+    ResourceKey<Level> dimensionKey = createDimensionKey(entry.targetDimension());
     if (!TeleportManager.startCountdownTeleport(
-        player,
-        entry.targetDimension(),
-        entry.countdownSeconds(),
-        !entry.skipMovementDetection())) {
+        player, dimensionKey, entry.countdownSeconds(), !entry.skipMovementDetection())) {
       log.warn(
           "Failed to start countdown teleport for player {} to dimension {}",
           player.getName().getString(),
           entry.targetDimension());
     }
+  }
+
+  private static ResourceKey<Level> createDimensionKey(final String dimensionName) {
+    if (dimensionName.contains(":")) {
+      return ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimensionName));
+    }
+    return ResourceKey.create(
+        Registries.DIMENSION,
+        ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionName));
   }
 
   public static void addAutoTeleport(

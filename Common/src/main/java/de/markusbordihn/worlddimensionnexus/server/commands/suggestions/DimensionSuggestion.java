@@ -29,15 +29,26 @@ import net.minecraft.server.level.ServerLevel;
 public class DimensionSuggestion {
 
   public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
-      (context, builder) ->
-          SharedSuggestionProvider.suggest(DimensionManager.getDimensionNames(), builder);
+      (context, builder) -> {
+        MinecraftServer server = context.getSource().getServer();
+        for (ServerLevel level : server.getAllLevels()) {
+          String dimensionResourceKey = level.dimension().location().toString();
+          builder.suggest(dimensionResourceKey);
+        }
+        return builder.buildFuture();
+      };
 
   public static final SuggestionProvider<CommandSourceStack> ALL_DIMENSIONS =
       (context, builder) -> {
         MinecraftServer server = context.getSource().getServer();
         for (ServerLevel level : server.getAllLevels()) {
-          builder.suggest(level.dimension().location().toString());
+          String dimensionResourceKey = level.dimension().location().toString();
+          builder.suggest(dimensionResourceKey);
         }
         return builder.buildFuture();
       };
+
+  public static final SuggestionProvider<CommandSourceStack> CUSTOM_DIMENSIONS =
+      (context, builder) ->
+          SharedSuggestionProvider.suggest(DimensionManager.getDimensionNames(), builder);
 }

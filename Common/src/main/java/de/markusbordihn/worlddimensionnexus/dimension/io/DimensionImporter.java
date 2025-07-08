@@ -39,9 +39,12 @@ import java.util.Comparator;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
 
 public class DimensionImporter {
@@ -103,7 +106,7 @@ public class DimensionImporter {
 
       log.info(
           "Imported dimension {} from {}",
-          finalDimensionInfo.resourceLocation(),
+          finalDimensionInfo.getResourceLocation(),
           importFile.getName());
       return true;
     } finally {
@@ -185,8 +188,8 @@ public class DimensionImporter {
     Path targetDir =
         worldDir
             .resolve(DIMENSIONS_DIR)
-            .resolve(importData.resourceLocation().getNamespace())
-            .resolve(importData.resourceLocation().getPath());
+            .resolve(importData.getResourceLocation().getNamespace())
+            .resolve(importData.getResourceLocation().getPath());
     Files.createDirectories(targetDir);
 
     try (Stream<Path> files = Files.walk(tempDir)) {
@@ -245,9 +248,9 @@ public class DimensionImporter {
     }
 
     if (fileBasedDimensionInfo != null
-        && fileBasedDimensionInfo.resourceLocation().getPath() != null
-        && !fileBasedDimensionInfo.resourceLocation().getPath().trim().isEmpty()) {
-      return fileBasedDimensionInfo.resourceLocation().getPath();
+        && fileBasedDimensionInfo.getResourceLocation().getPath() != null
+        && !fileBasedDimensionInfo.getResourceLocation().getPath().trim().isEmpty()) {
+      return fileBasedDimensionInfo.getResourceLocation().getPath();
     }
 
     return importFile.getName().replaceAll(FILE_EXTENSION_PATTERN, "");
@@ -274,8 +277,12 @@ public class DimensionImporter {
       final ChunkGeneratorType finalChunkGeneratorType) {
 
     if (fileBasedDimensionInfo != null) {
+      ResourceLocation dimensionLocation =
+          ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, finalDimensionName);
+      ResourceKey<Level> dimensionKey = ResourceKey.create(Registries.DIMENSION, dimensionLocation);
+
       return new DimensionInfoData(
-          ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, finalDimensionName),
+          dimensionKey,
           fileBasedDimensionInfo.dimensionTypeKey(),
           finalDimensionName,
           fileBasedDimensionInfo.description(),

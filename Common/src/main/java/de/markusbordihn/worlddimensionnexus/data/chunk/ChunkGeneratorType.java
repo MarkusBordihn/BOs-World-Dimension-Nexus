@@ -31,7 +31,8 @@ public enum ChunkGeneratorType {
   SKYBLOCK("skyblock", "minecraft:overworld"),
   CAVE("cave", "minecraft:overworld_caves"),
   FLOATING_ISLANDS("floating_islands", "minecraft:the_end"),
-  AMPLIFIED("amplified", "minecraft:overworld");
+  AMPLIFIED("amplified", "minecraft:overworld"),
+  WATER("water", "world_dimension_nexus:water_dimension_type");
 
   public static final Codec<ChunkGeneratorType> CODEC =
       Codec.STRING.xmap(ChunkGeneratorType::fromString, ChunkGeneratorType::getName);
