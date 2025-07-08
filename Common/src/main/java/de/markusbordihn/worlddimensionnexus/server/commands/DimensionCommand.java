@@ -21,7 +21,6 @@ package de.markusbordihn.worlddimensionnexus.server.commands;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
@@ -34,19 +33,17 @@ import de.markusbordihn.worlddimensionnexus.dimension.io.DimensionImporter;
 import de.markusbordihn.worlddimensionnexus.resources.WorldDataPackResourceManager;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionImportFileSuggestion;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
-import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import java.io.File;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.DimensionArgument;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 
 public class DimensionCommand extends Command {
@@ -82,7 +79,25 @@ public class DimensionCommand extends Command {
                                         createTypedDimension(
                                             context.getSource(),
                                             StringArgumentType.getString(context, "name"),
-                                            StringArgumentType.getString(context, "type"))))))
+                                            StringArgumentType.getString(context, "type")))
+                                .then(
+                                    Commands.argument("gametype", StringArgumentType.word())
+                                        .suggests(
+                                            (context, builder) -> {
+                                              builder.suggest("survival");
+                                              builder.suggest("creative");
+                                              builder.suggest("adventure");
+                                              builder.suggest("spectator");
+                                              return builder.buildFuture();
+                                            })
+                                        .executes(
+                                            context ->
+                                                createDimensionWithGameType(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(context, "name"),
+                                                    StringArgumentType.getString(context, "type"),
+                                                    StringArgumentType.getString(
+                                                        context, "gametype")))))))
         .then(
             Commands.literal("remove")
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_ADMINS))
@@ -121,26 +136,29 @@ public class DimensionCommand extends Command {
                                                     context.getSource(),
                                                     StringArgumentType.getString(context, "name"),
                                                     BlockPosArgument.getBlockPos(
-                                                        context, "position")))))))
-        .then(
-            Commands.literal("teleport")
-                .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
+                                                        context, "position"))))))
                 .then(
-                    Commands.argument("name", StringArgumentType.word())
-                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
-                        .executes(
-                            context ->
-                                teleportToDimension(
-                                    context.getSource(),
-                                    StringArgumentType.getString(context, "name")))
+                    Commands.literal("gametype")
                         .then(
-                            Commands.argument("player", EntityArgument.player())
-                                .executes(
-                                    context ->
-                                        teleportPlayerToDimension(
-                                            context.getSource(),
-                                            StringArgumentType.getString(context, "name"),
-                                            EntityArgument.getPlayer(context, "player"))))))
+                            Commands.argument("name", StringArgumentType.word())
+                                .suggests(DimensionSuggestion.DIMENSION_NAMES)
+                                .then(
+                                    Commands.argument("gametype", StringArgumentType.word())
+                                        .suggests(
+                                            (context, builder) -> {
+                                              builder.suggest("survival");
+                                              builder.suggest("creative");
+                                              builder.suggest("adventure");
+                                              builder.suggest("spectator");
+                                              return builder.buildFuture();
+                                            })
+                                        .executes(
+                                            context ->
+                                                setDimensionGameType(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(context, "name"),
+                                                    StringArgumentType.getString(
+                                                        context, "gametype")))))))
         .then(
             Commands.literal("export")
                 .requires(source -> source.hasPermission(Commands.LEVEL_OWNERS))
@@ -219,10 +237,6 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int createDimension(final CommandSourceStack context, final String dimensionName) {
-    return createDimension(context, dimensionName, ChunkGeneratorType.VOID);
-  }
-
   public static int createDimension(
       final CommandSourceStack context, final String dimensionName, final ChunkGeneratorType type) {
     DimensionInfoData dimensionInfo =
@@ -248,24 +262,7 @@ public class DimensionCommand extends Command {
     if (info == null) {
       return sendFailureMessage(source, "Dimension '" + name + "' not found.");
     }
-    sendSuccessMessage(source, "Dimension info for '" + name + "':\n" + info);
-    return Command.SINGLE_SUCCESS;
-  }
-
-  public static int teleportToDimension(final CommandSourceStack source, final String name)
-      throws CommandSyntaxException {
-    ServerPlayer player = source.getPlayerOrException();
-    return teleportPlayerToDimension(source, name, player);
-  }
-
-  public static int teleportPlayerToDimension(
-      final CommandSourceStack source, final String name, final ServerPlayer player) {
-    if (!TeleportManager.safeTeleportToDimension(player, name)) {
-      return sendFailureMessage(source, "Dimension '" + name + "' not found or teleport failed.");
-    }
-    sendSuccessMessage(
-        source, "Teleported " + player.getName().getString() + " to '" + name + "'.");
-    return Command.SINGLE_SUCCESS;
+    return sendSuccessMessage(source, "Dimension info for '" + name + "':\n" + info);
   }
 
   private static int exportDimension(
@@ -281,9 +278,8 @@ public class DimensionCommand extends Command {
 
     if (DimensionExporter.exportDimension(server, dimension, exportFile)) {
       return sendSuccessMessage(source, "Export successful: " + exportFile.getAbsolutePath());
-    } else {
-      return sendFailureMessage(source, "Error exporting the dimension!");
     }
+    return sendFailureMessage(source, "Error exporting the dimension!");
   }
 
   private static int importDimensionWithInfoData(
@@ -304,10 +300,8 @@ public class DimensionCommand extends Command {
         chunkGeneratorType = ChunkGeneratorType.fromString(typeName);
       }
 
-      boolean success =
-          DimensionImporter.importDimension(server, importFile, dimensionName, chunkGeneratorType);
-
-      if (success) {
+      if (DimensionImporter.importDimension(
+          server, importFile, dimensionName, chunkGeneratorType)) {
         String finalDimensionName =
             dimensionName != null ? dimensionName : fileName.replaceAll("\\.wdn$", "");
         return sendSuccessMessage(
@@ -344,6 +338,35 @@ public class DimensionCommand extends Command {
         String.format("Failed to create dimension '%s' with type '%s'!", dimensionName, typeName));
   }
 
+  public static int createDimensionWithGameType(
+      final CommandSourceStack context,
+      final String dimensionName,
+      final String typeName,
+      final String gameTypeName) {
+    ChunkGeneratorType type = ChunkGeneratorType.fromString(typeName);
+    DimensionInfoData dimensionInfo =
+        DimensionInfoData.fromDimensionNameAndType(dimensionName, type);
+
+    GameType gameType = GameType.byName(gameTypeName, null);
+    if (gameType == null) {
+      return sendFailureMessage(
+          context, "Invalid gametype. Use: survival, creative, adventure, or spectator.");
+    }
+
+    ServerLevel serverLevel =
+        DimensionManager.addOrCreateDimension(dimensionInfo.withGameType(gameType), true);
+    if (serverLevel != null) {
+      return sendSuccessMessage(
+          context,
+          String.format(
+              "Dimension '%s' created successfully with type '%s' and gametype '%s'!",
+              dimensionName, type.getName(), gameType.getName()));
+    }
+    return sendFailureMessage(
+        context,
+        String.format("Failed to create dimension '%s' with type '%s'!", dimensionName, typeName));
+  }
+
   public static int listChunkGeneratorTypes(final CommandSourceStack context) {
     sendSuccessMessage(context, "Available Chunk Generator Types\n===============================");
 
@@ -369,7 +392,6 @@ public class DimensionCommand extends Command {
     if (configs.isEmpty()) {
       return sendFailureMessage(context, "No worldgen configurations loaded.");
     }
-
     sendSuccessMessage(context, "Loaded Worldgen Configurations\n==============================");
 
     for (var entry : configs.entrySet()) {
@@ -385,7 +407,6 @@ public class DimensionCommand extends Command {
             .append(entry.getValue().customSettings().size())
             .append(" settings");
       }
-
       sendSuccessMessage(context, details.toString());
     }
     return Command.SINGLE_SUCCESS;
@@ -398,17 +419,38 @@ public class DimensionCommand extends Command {
       return sendFailureMessage(source, "Dimension '" + dimensionName + "' not found.");
     }
 
-    boolean success = DimensionManager.setDimensionSpawnPoint(dimensionName, spawnPoint);
-
-    if (success) {
+    if (DimensionManager.updateDimensionInfoData(
+        dimensionName, dimensionInfo.withSpawnPoint(spawnPoint))) {
       return sendSuccessMessage(
           source,
           String.format(
               "Spawn point for dimension '%s' set to (%d, %d, %d)",
               dimensionName, spawnPoint.getX(), spawnPoint.getY(), spawnPoint.getZ()));
-    } else {
-      return sendFailureMessage(
-          source, "Failed to set spawn point for dimension '" + dimensionName + "'");
     }
+    return sendFailureMessage(
+        source, "Failed to set spawn point for dimension '" + dimensionName + "'");
+  }
+
+  public static int setDimensionGameType(
+      final CommandSourceStack source, final String dimensionName, final String gameTypeName) {
+    DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfoData(dimensionName);
+    if (dimensionInfo == null) {
+      return sendFailureMessage(source, "Dimension '" + dimensionName + "' not found.");
+    }
+
+    GameType gameType = GameType.byName(gameTypeName, null);
+    if (gameType == null) {
+      return sendFailureMessage(
+          source, "Invalid gametype. Use: survival, creative, adventure, or spectator.");
+    }
+
+    if (DimensionManager.updateDimensionInfoData(
+        dimensionName, dimensionInfo.withGameType(gameType))) {
+      return sendSuccessMessage(
+          source,
+          "Set gametype for dimension '" + dimensionName + "' to " + gameType.getName() + ".");
+    }
+    return sendFailureMessage(
+        source, "Failed to update gametype for dimension '" + dimensionName + "'.");
   }
 }

@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
@@ -400,18 +399,16 @@ public class DimensionManager {
     }
   }
 
-  public static boolean setDimensionSpawnPoint(
-      final String dimensionName, final BlockPos spawnPoint) {
-    DimensionInfoData dimensionInfo = getDimensionInfoData(dimensionName);
-    if (dimensionInfo == null) {
+  public static boolean updateDimensionInfoData(
+      final String dimensionName, final DimensionInfoData updatedInfo) {
+    DimensionInfoData oldInfo = getDimensionInfoData(dimensionName);
+    if (oldInfo == null) {
       return false;
     }
 
-    DimensionInfoData updatedInfo = dimensionInfo.withSpawnPoint(spawnPoint);
-    dimensions.remove(dimensionInfo);
+    dimensions.remove(oldInfo);
     dimensions.add(updatedInfo);
 
-    // Update storage
     DimensionDataStorage.get().addDimension(updatedInfo);
 
     return true;

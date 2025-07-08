@@ -70,16 +70,15 @@ public class TeleportCommand extends Command {
           Component.literal("Teleported to dimension ")
               .withStyle(ChatFormatting.GREEN)
               .append(Component.literal(dimensionName).withStyle(ChatFormatting.YELLOW)));
-    } else {
-      return sendFailureMessage(
-          context.getSource(),
-          Component.literal("Failed to teleport to dimension ")
-              .withStyle(ChatFormatting.RED)
-              .append(Component.literal(dimensionName).withStyle(ChatFormatting.YELLOW))
-              .append(
-                  Component.literal(". Dimension may not exist or be loaded.")
-                      .withStyle(ChatFormatting.GRAY)));
     }
+    return sendFailureMessage(
+        context.getSource(),
+        Component.literal("Failed to teleport to dimension ")
+            .withStyle(ChatFormatting.RED)
+            .append(Component.literal(dimensionName).withStyle(ChatFormatting.YELLOW))
+            .append(
+                Component.literal(". Dimension may not exist or be loaded.")
+                    .withStyle(ChatFormatting.GRAY)));
   }
 
   private static int teleportPlayerToDimension(final CommandContext<CommandSourceStack> context)
@@ -97,17 +96,16 @@ public class TeleportCommand extends Command {
                       .withStyle(ChatFormatting.YELLOW))
               .append(Component.literal(" to dimension ").withStyle(ChatFormatting.GREEN))
               .append(Component.literal(dimensionName).withStyle(ChatFormatting.AQUA)));
-    } else {
-      return sendFailureMessage(
-          context.getSource(),
-          Component.literal("Failed to teleport ")
-              .withStyle(ChatFormatting.RED)
-              .append(
-                  Component.literal(targetPlayer.getName().getString())
-                      .withStyle(ChatFormatting.YELLOW))
-              .append(Component.literal(" to dimension ").withStyle(ChatFormatting.RED))
-              .append(Component.literal(dimensionName).withStyle(ChatFormatting.YELLOW)));
     }
+    return sendFailureMessage(
+        context.getSource(),
+        Component.literal("Failed to teleport ")
+            .withStyle(ChatFormatting.RED)
+            .append(
+                Component.literal(targetPlayer.getName().getString())
+                    .withStyle(ChatFormatting.YELLOW))
+            .append(Component.literal(" to dimension ").withStyle(ChatFormatting.RED))
+            .append(Component.literal(dimensionName).withStyle(ChatFormatting.YELLOW)));
   }
 
   private static int teleportBack(final CommandContext<CommandSourceStack> context)
@@ -115,20 +113,19 @@ public class TeleportCommand extends Command {
     ServerPlayer player = context.getSource().getPlayerOrException();
 
     // Check cooldown for non-moderator players
-    if (!context.getSource().hasPermission(Commands.LEVEL_MODERATORS)) {
-      if (!TeleportCooldownManager.canTeleportBack(player)) {
-        int remainingSeconds = TeleportCooldownManager.getRemainingCooldown(player);
-        return sendFailureMessage(
-            context.getSource(),
-            Component.literal("You must wait ")
-                .withStyle(ChatFormatting.RED)
-                .append(
-                    Component.literal(String.valueOf(remainingSeconds))
-                        .withStyle(ChatFormatting.YELLOW))
-                .append(
-                    Component.literal(" more seconds before using teleport back again")
-                        .withStyle(ChatFormatting.RED)));
-      }
+    if (!context.getSource().hasPermission(Commands.LEVEL_MODERATORS)
+        && !TeleportCooldownManager.canTeleportBack(player)) {
+      int remainingSeconds = TeleportCooldownManager.getRemainingCooldown(player);
+      return sendFailureMessage(
+          context.getSource(),
+          Component.literal("You must wait ")
+              .withStyle(ChatFormatting.RED)
+              .append(
+                  Component.literal(String.valueOf(remainingSeconds))
+                      .withStyle(ChatFormatting.YELLOW))
+              .append(
+                  Component.literal(" more seconds before using teleport back again")
+                      .withStyle(ChatFormatting.RED)));
     }
 
     if (TeleportManager.teleportBack(player)) {
@@ -141,12 +138,12 @@ public class TeleportCommand extends Command {
           context.getSource(),
           Component.literal("Teleported back to previous location")
               .withStyle(ChatFormatting.GREEN));
-    } else {
-      return sendFailureMessage(
-          context.getSource(),
-          Component.literal("No previous location found to teleport back to")
-              .withStyle(ChatFormatting.RED));
     }
+
+    return sendFailureMessage(
+        context.getSource(),
+        Component.literal("No previous location found to teleport back to")
+            .withStyle(ChatFormatting.RED));
   }
 
   private static int teleportPlayerBack(final CommandContext<CommandSourceStack> context)
@@ -163,14 +160,14 @@ public class TeleportCommand extends Command {
                       .withStyle(ChatFormatting.YELLOW))
               .append(
                   Component.literal(" back to previous location").withStyle(ChatFormatting.GREEN)));
-    } else {
-      return sendFailureMessage(
-          context.getSource(),
-          Component.literal("No previous location found for ")
-              .withStyle(ChatFormatting.RED)
-              .append(
-                  Component.literal(targetPlayer.getName().getString())
-                      .withStyle(ChatFormatting.YELLOW)));
     }
+
+    return sendFailureMessage(
+        context.getSource(),
+        Component.literal("No previous location found for ")
+            .withStyle(ChatFormatting.RED)
+            .append(
+                Component.literal(targetPlayer.getName().getString())
+                    .withStyle(ChatFormatting.YELLOW)));
   }
 }

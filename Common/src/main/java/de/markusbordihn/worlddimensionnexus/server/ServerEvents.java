@@ -79,7 +79,7 @@ public class ServerEvents {
     ServerLevel overworld = minecraftServer.getLevel(Level.OVERWORLD);
     if (overworld != null) {
       // Load saved auto-teleport rules from storage
-      AutoTeleportManager.loadGlobalRules(overworld);
+      AutoTeleportManager.loadRules(overworld);
     }
 
     // Synchronize Portal Data Storage to Portal Manager.

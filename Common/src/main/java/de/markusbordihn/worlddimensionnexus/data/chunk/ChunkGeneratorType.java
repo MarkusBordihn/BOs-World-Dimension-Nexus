@@ -22,23 +22,25 @@ package de.markusbordihn.worlddimensionnexus.data.chunk;
 import com.mojang.serialization.Codec;
 
 public enum ChunkGeneratorType {
-  CUSTOM("custom"),
-  FLAT("flat"),
-  NOISE("noise"),
-  DEBUG("debug"),
-  VOID("void"),
-  LOBBY("lobby"),
-  SKYBLOCK("skyblock"),
-  CAVE("cave"),
-  FLOATING_ISLANDS("floating_islands"),
-  AMPLIFIED("amplified");
+  CUSTOM("custom", "minecraft:overworld"),
+  FLAT("flat", "minecraft:overworld"),
+  NOISE("noise", "minecraft:overworld"),
+  DEBUG("debug", "minecraft:overworld"),
+  VOID("void", "minecraft:the_end"),
+  LOBBY("lobby", "world_dimension_nexus:lobby_dimension_type"),
+  SKYBLOCK("skyblock", "minecraft:overworld"),
+  CAVE("cave", "minecraft:overworld_caves"),
+  FLOATING_ISLANDS("floating_islands", "minecraft:the_end"),
+  AMPLIFIED("amplified", "minecraft:overworld");
 
   public static final Codec<ChunkGeneratorType> CODEC =
       Codec.STRING.xmap(ChunkGeneratorType::fromString, ChunkGeneratorType::getName);
   private final String name;
+  private final String dimensionType;
 
-  ChunkGeneratorType(final String name) {
+  ChunkGeneratorType(final String name, final String dimensionType) {
     this.name = name;
+    this.dimensionType = dimensionType;
   }
 
   public static ChunkGeneratorType fromString(final String name) {
@@ -52,5 +54,9 @@ public enum ChunkGeneratorType {
 
   public String getName() {
     return name;
+  }
+
+  public String getDimensionType() {
+    return dimensionType;
   }
 }

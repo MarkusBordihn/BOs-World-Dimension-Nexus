@@ -29,6 +29,7 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 
 public class TeleportHistory {
@@ -48,17 +49,26 @@ public class TeleportHistory {
       final ResourceKey<Level> dimension,
       final BlockPos position,
       final float yRot,
-      final float xRot) {
+      final float xRot,
+      final GameType gameType) {
     List<TeleportLocation> history =
         playerHistory.computeIfAbsent(playerId, k -> new ArrayList<>());
 
-    history.addFirst(new TeleportLocation(dimension, position, yRot, xRot));
+    history.addFirst(new TeleportLocation(dimension, position, yRot, xRot, gameType));
     if (history.size() > MAX_HISTORY_SIZE) {
       history.removeLast();
     }
 
-    // Save to persistent storage
     savePlayerHistoryToStorage(playerId, history);
+  }
+
+  public static void recordLocation(
+      final UUID playerId,
+      final ResourceKey<Level> dimension,
+      final BlockPos position,
+      final float yRot,
+      final float xRot) {
+    recordLocation(playerId, dimension, position, yRot, xRot, GameType.SURVIVAL);
   }
 
   public static TeleportLocation getLastLocation(final UUID playerId) {
@@ -77,11 +87,21 @@ public class TeleportHistory {
     }
 
     TeleportLocation lastLocation = history.removeFirst();
-
-    // Save updated history to storage
     savePlayerHistoryToStorage(playerId, history);
-
     return lastLocation;
+  }
+
+  public static GameType getLastGameTypeForDimension(
+      final UUID playerId, final ResourceKey<Level> dimension) {
+    List<TeleportLocation> history = getPlayerHistory(playerId);
+
+    for (TeleportLocation location : history) {
+      if (location.dimension().equals(dimension)) {
+        return location.gameType();
+      }
+    }
+
+    return GameType.SURVIVAL;
   }
 
   public static List<TeleportLocation> getPlayerHistory(final UUID playerId) {

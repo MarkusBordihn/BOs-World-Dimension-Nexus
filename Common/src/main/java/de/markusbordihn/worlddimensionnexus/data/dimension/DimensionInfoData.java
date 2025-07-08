@@ -36,50 +36,55 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
 
 public record DimensionInfoData(
-    String namespace,
-    String path,
-    String type,
-    String name,
+    ResourceLocation resourceLocation,
+    ResourceKey<DimensionType> dimensionTypeKey,
+    String displayName,
     String description,
     boolean isCustom,
     ChunkGeneratorType chunkGeneratorType,
     boolean requiresHotInjectionSync,
-    BlockPos spawnPoint) {
+    BlockPos spawnPoint,
+    GameType gameType) {
 
-  private static final PrefixLogger log = ModLogger.getPrefixLogger("DimensionInfoData");
-
-  public static final String NAMESPACE_TAG = "namespace";
-  public static final String PATH_TAG = "path";
+  public static final String RESOURCE_LOCATION_TAG = "resourceLocation";
   public static final String TYPE_TAG = "type";
-  public static final String NAME_TAG = "name";
+  public static final String DISPLAY_NAME_TAG = "displayName";
   public static final String DESCRIPTION_TAG = "description";
   public static final String IS_CUSTOM_TAG = "isCustom";
   public static final String CHUNK_GENERATOR_TYPE_TAG = "chunkGeneratorType";
   public static final String HOT_INJECTION_SYNC_TAG = "requiresHotInjectionSync";
   public static final String SPAWN_POINT_TAG = "spawnPoint";
+  public static final String GAME_TYPE_TAG = "gameType";
   public static final String DEFAULT_TYPE = "minecraft:overworld";
   public static final String DEFAULT_EMPTY_STRING = "";
   public static final boolean DEFAULT_IS_CUSTOM = true;
   public static final ChunkGeneratorType DEFAULT_CHUNK_GENERATOR_TYPE = ChunkGeneratorType.FLAT;
   public static final boolean DEFAULT_HOT_INJECTION_SYNC = true;
   public static final BlockPos DEFAULT_SPAWN_POINT = new BlockPos(0, 100, 0);
+  public static final GameType DEFAULT_GAME_TYPE = GameType.SURVIVAL;
+  public static final ResourceKey<DimensionType> DEFAULT_DIMENSION_TYPE_KEY =
+      BuiltinDimensionTypes.OVERWORLD;
   public static final Codec<DimensionInfoData> CODEC =
       RecordCodecBuilder.create(
           instance ->
               instance
                   .group(
-                      Codec.STRING.fieldOf(NAMESPACE_TAG).forGetter(DimensionInfoData::namespace),
-                      Codec.STRING.fieldOf(PATH_TAG).forGetter(DimensionInfoData::path),
-                      Codec.STRING.fieldOf(TYPE_TAG).forGetter(DimensionInfoData::type),
+                      ResourceLocation.CODEC
+                          .fieldOf(RESOURCE_LOCATION_TAG)
+                          .forGetter(DimensionInfoData::resourceLocation),
+                      ResourceKey.codec(Registries.DIMENSION_TYPE)
+                          .optionalFieldOf(TYPE_TAG, DEFAULT_DIMENSION_TYPE_KEY)
+                          .forGetter(DimensionInfoData::dimensionTypeKey),
                       Codec.STRING
-                          .optionalFieldOf(NAME_TAG, DEFAULT_EMPTY_STRING)
-                          .forGetter(DimensionInfoData::name),
+                          .optionalFieldOf(DISPLAY_NAME_TAG, DEFAULT_EMPTY_STRING)
+                          .forGetter(DimensionInfoData::displayName),
                       Codec.STRING
                           .optionalFieldOf(DESCRIPTION_TAG, DEFAULT_EMPTY_STRING)
                           .forGetter(DimensionInfoData::description),
@@ -94,21 +99,36 @@ public record DimensionInfoData(
                           .forGetter(DimensionInfoData::requiresHotInjectionSync),
                       BlockPos.CODEC
                           .optionalFieldOf(SPAWN_POINT_TAG, DEFAULT_SPAWN_POINT)
-                          .forGetter(DimensionInfoData::spawnPoint))
+                          .forGetter(DimensionInfoData::spawnPoint),
+                      GameType.CODEC
+                          .optionalFieldOf(GAME_TYPE_TAG, DEFAULT_GAME_TYPE)
+                          .forGetter(DimensionInfoData::gameType))
                   .apply(instance, DimensionInfoData::new));
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("DimensionInfoData");
 
   public static DimensionInfoData forImport(
       final String namespace, final String path, final String type) {
+    ResourceKey<DimensionType> dimensionTypeKey;
+    try {
+      dimensionTypeKey = createDimensionTypeKey(type);
+    } catch (Exception e) {
+      log.warn(
+          "Failed to parse dimension type for import '{}', using default: {}",
+          type,
+          e.getMessage());
+      dimensionTypeKey = DEFAULT_DIMENSION_TYPE_KEY;
+    }
+
     return new DimensionInfoData(
-        namespace,
-        path,
-        type,
+        ResourceLocation.fromNamespaceAndPath(namespace, path),
+        dimensionTypeKey,
         DEFAULT_EMPTY_STRING,
         DEFAULT_EMPTY_STRING,
         DEFAULT_IS_CUSTOM,
         DEFAULT_CHUNK_GENERATOR_TYPE,
         DEFAULT_HOT_INJECTION_SYNC,
-        DEFAULT_SPAWN_POINT);
+        DEFAULT_SPAWN_POINT,
+        DEFAULT_GAME_TYPE);
   }
 
   public static DimensionInfoData fromDimensionName(final String dimensionName) {
@@ -124,29 +144,24 @@ public record DimensionInfoData(
       resourceLocation = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, dimensionName);
     }
 
-    String dimensionType = getDimensionTypeForChunkGenerator(chunkGeneratorType);
+    ResourceKey<DimensionType> dimensionTypeKey =
+        createDimensionTypeKey(chunkGeneratorType.getDimensionType());
     return new DimensionInfoData(
-        resourceLocation.getNamespace(),
-        resourceLocation.getPath(),
-        dimensionType,
+        resourceLocation,
+        dimensionTypeKey,
         dimensionName,
         DEFAULT_EMPTY_STRING,
         DEFAULT_IS_CUSTOM,
         chunkGeneratorType,
         DEFAULT_HOT_INJECTION_SYNC,
-        DEFAULT_SPAWN_POINT);
+        DEFAULT_SPAWN_POINT,
+        DEFAULT_GAME_TYPE);
   }
 
-  private static String getDimensionTypeForChunkGenerator(
-      final ChunkGeneratorType chunkGeneratorType) {
-    return switch (chunkGeneratorType) {
-      case LOBBY -> "world_dimension_nexus:lobby_dimension_type";
-      case VOID -> "minecraft:the_end";
-      case SKYBLOCK -> "minecraft:overworld";
-      case CAVE -> "minecraft:overworld_caves";
-      case FLOATING_ISLANDS -> "minecraft:the_end";
-      default -> DEFAULT_TYPE;
-    };
+  private static ResourceKey<DimensionType> createDimensionTypeKey(
+      final String dimensionTypeString) {
+    ResourceLocation typeLocation = ResourceLocation.parse(dimensionTypeString);
+    return ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
   }
 
   public static DimensionInfoData fromJson(final JsonObject jsonObject) {
@@ -176,13 +191,34 @@ public record DimensionInfoData(
       }
     }
 
+    GameType gameType = DEFAULT_GAME_TYPE;
+    if (jsonObject.has(GAME_TYPE_TAG)) {
+      try {
+        String gameTypeString = jsonObject.get(GAME_TYPE_TAG).getAsString();
+        gameType = GameType.byName(gameTypeString, DEFAULT_GAME_TYPE);
+      } catch (Exception e) {
+        // Use default if invalid gameType
+      }
+    }
+
+    ResourceKey<DimensionType> dimensionTypeKey = DEFAULT_DIMENSION_TYPE_KEY;
+    if (jsonObject.has(TYPE_TAG)) {
+      try {
+        String typeString = jsonObject.get(TYPE_TAG).getAsString();
+        dimensionTypeKey = createDimensionTypeKey(typeString);
+      } catch (Exception e) {
+        log.warn("Failed to parse dimension type from JSON: {}, using default", e.getMessage());
+      }
+    }
+
     return new DimensionInfoData(
-        jsonObject.has(NAMESPACE_TAG)
-            ? jsonObject.get(NAMESPACE_TAG).getAsString()
+        jsonObject.has(RESOURCE_LOCATION_TAG)
+            ? ResourceLocation.parse(jsonObject.get(RESOURCE_LOCATION_TAG).getAsString())
+            : ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, DEFAULT_EMPTY_STRING),
+        dimensionTypeKey,
+        jsonObject.has(DISPLAY_NAME_TAG)
+            ? jsonObject.get(DISPLAY_NAME_TAG).getAsString()
             : DEFAULT_EMPTY_STRING,
-        jsonObject.has(PATH_TAG) ? jsonObject.get(PATH_TAG).getAsString() : DEFAULT_EMPTY_STRING,
-        jsonObject.has(TYPE_TAG) ? jsonObject.get(TYPE_TAG).getAsString() : DEFAULT_TYPE,
-        jsonObject.has(NAME_TAG) ? jsonObject.get(NAME_TAG).getAsString() : DEFAULT_EMPTY_STRING,
         jsonObject.has(DESCRIPTION_TAG)
             ? jsonObject.get(DESCRIPTION_TAG).getAsString()
             : DEFAULT_EMPTY_STRING,
@@ -193,44 +229,31 @@ public record DimensionInfoData(
         jsonObject.has(HOT_INJECTION_SYNC_TAG)
             ? jsonObject.get(HOT_INJECTION_SYNC_TAG).getAsBoolean()
             : DEFAULT_HOT_INJECTION_SYNC,
-        spawnPoint);
+        spawnPoint,
+        gameType);
   }
 
   public JsonObject toJson() {
     JsonObject json = new JsonObject();
-    json.addProperty(NAMESPACE_TAG, namespace);
-    json.addProperty(PATH_TAG, path);
-    json.addProperty(TYPE_TAG, type);
-    json.addProperty(NAME_TAG, name);
+    json.addProperty(RESOURCE_LOCATION_TAG, resourceLocation.toString());
+    json.addProperty(TYPE_TAG, dimensionTypeKey.location().toString());
+    json.addProperty(DISPLAY_NAME_TAG, displayName);
     json.addProperty(DESCRIPTION_TAG, description);
     json.addProperty(IS_CUSTOM_TAG, isCustom);
     json.addProperty(CHUNK_GENERATOR_TYPE_TAG, chunkGeneratorType.name());
     json.addProperty(HOT_INJECTION_SYNC_TAG, false);
     json.addProperty(
         SPAWN_POINT_TAG, spawnPoint.getX() + "," + spawnPoint.getY() + "," + spawnPoint.getZ());
+    json.addProperty(GAME_TYPE_TAG, gameType.getName());
     return json;
   }
 
   public ResourceLocation getResourceLocation() {
-    return ResourceLocation.fromNamespaceAndPath(namespace, path);
+    return resourceLocation;
   }
 
   public ResourceLocation getTypeResourceLocation() {
-    try {
-      return ResourceLocation.parse(type);
-    } catch (Exception e) {
-      log.warn(
-          "Failed to parse DimensionType resource location '{}', using as-is: {}",
-          type,
-          e.getMessage());
-      if (type.contains(":")) {
-        String[] parts = type.split(":", 2);
-        return ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
-      } else {
-        log.warn("Invalid DimensionType format '{}', falling back to overworld", type);
-        return ResourceLocation.fromNamespaceAndPath("minecraft", "overworld");
-      }
-    }
+    return dimensionTypeKey.location();
   }
 
   public ResourceKey<Level> getDimensionKey() {
@@ -239,20 +262,41 @@ public record DimensionInfoData(
 
   public DimensionInfoData withoutHotInjectionSync() {
     return new DimensionInfoData(
-        namespace, path, type, name, description, isCustom, chunkGeneratorType, false, spawnPoint);
+        resourceLocation,
+        dimensionTypeKey,
+        displayName,
+        description,
+        isCustom,
+        chunkGeneratorType,
+        false,
+        spawnPoint,
+        gameType);
   }
 
   public DimensionInfoData withSpawnPoint(final BlockPos newSpawnPoint) {
     return new DimensionInfoData(
-        namespace,
-        path,
-        type,
-        name,
+        resourceLocation,
+        dimensionTypeKey,
+        displayName,
         description,
         isCustom,
         chunkGeneratorType,
         requiresHotInjectionSync,
-        newSpawnPoint);
+        newSpawnPoint,
+        gameType);
+  }
+
+  public DimensionInfoData withGameType(final GameType newGameType) {
+    return new DimensionInfoData(
+        resourceLocation,
+        dimensionTypeKey,
+        displayName,
+        description,
+        isCustom,
+        chunkGeneratorType,
+        requiresHotInjectionSync,
+        spawnPoint,
+        newGameType);
   }
 
   public ChunkGenerator getChunkGenerator(final MinecraftServer minecraftServer) {
@@ -263,12 +307,8 @@ public record DimensionInfoData(
     HolderGetter<DimensionType> dimensionTypeGetter =
         minecraftServer.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);
 
-    ResourceLocation typeLocation = getTypeResourceLocation();
-    ResourceKey<DimensionType> typeKey =
-        ResourceKey.create(Registries.DIMENSION_TYPE, typeLocation);
-
     try {
-      return dimensionTypeGetter.getOrThrow(typeKey);
+      return dimensionTypeGetter.getOrThrow(dimensionTypeKey);
     } catch (Exception e) {
       Optional<DimensionType> jsonDimensionType =
           JsonChunkGeneratorLoader.loadDimensionTypeFromJson(minecraftServer, chunkGeneratorType);
@@ -277,7 +317,7 @@ public record DimensionInfoData(
         log.warn(
             "JSON DimensionType loaded but not registered. Using overworld type for network compatibility. "
                 + "Consider registering the DimensionType in the registry for: {}",
-            typeKey.location());
+            dimensionTypeKey.location());
       }
 
       return dimensionTypeGetter.getOrThrow(BuiltinDimensionTypes.OVERWORLD);

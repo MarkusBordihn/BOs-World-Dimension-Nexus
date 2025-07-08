@@ -17,31 +17,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package de.markusbordihn.worlddimensionnexus.data.teleport;
+package de.markusbordihn.worlddimensionnexus.gamemode;
 
-import com.mojang.serialization.Codec;
-import net.minecraft.util.StringRepresentable;
+import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 
-public enum AutoTeleportTrigger implements StringRepresentable {
-  ONCE_AFTER_SERVER_RESTART("once_after_server_restart"),
-  ONCE_PER_SERVER_JOIN("once_per_server_join"),
-  ONCE_PER_DAY("once_per_day"),
-  ONCE_PER_WEEK("once_per_week"),
-  ONCE_PER_MONTH("once_per_month"),
-  ON_DEATH("on_death"),
-  ALWAYS("always");
+public class GameModeHistory {
 
-  public static final Codec<AutoTeleportTrigger> CODEC =
-      StringRepresentable.fromEnum(AutoTeleportTrigger::values);
+  private GameModeHistory() {}
 
-  private final String name;
+  public static void applyGameTypeForPlayer(
+      final ServerPlayer player,
+      final ResourceKey<Level> dimension,
+      final GameType dimensionGameType) {
 
-  AutoTeleportTrigger(final String name) {
-    this.name = name;
+    if (player.hasPermissions(2)) {
+      return;
+    }
+
+    player.setGameMode(dimensionGameType);
   }
 
-  @Override
-  public String getSerializedName() {
-    return this.name;
+  public static void restoreGameTypeFromHistory(
+      final ServerPlayer player, final ResourceKey<Level> targetDimension) {
+
+    if (player.hasPermissions(2)) {
+      return;
+    }
+
+    GameType previousGameType =
+        TeleportHistory.getLastGameTypeForDimension(player.getUUID(), targetDimension);
+    if (previousGameType != null) {
+      player.setGameMode(previousGameType);
+    }
   }
 }

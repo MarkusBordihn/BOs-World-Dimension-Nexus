@@ -24,8 +24,13 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.phys.Vec3;
 
 public record AutoTeleportEntry(
-    String targetDimension, Vec3 position, AutoTeleportTrigger trigger) {
+    String targetDimension,
+    Vec3 position,
+    AutoTeleportTrigger trigger,
+    int countdownSeconds,
+    boolean skipMovementDetection) {
 
+  private static final int DEFAULT_COUNTDOWN_SECONDS = 5;
   public static final Codec<AutoTeleportEntry> CODEC =
       RecordCodecBuilder.create(
           instance ->
@@ -37,6 +42,50 @@ public record AutoTeleportEntry(
                       Vec3.CODEC.fieldOf("position").forGetter(AutoTeleportEntry::position),
                       AutoTeleportTrigger.CODEC
                           .fieldOf("trigger")
-                          .forGetter(AutoTeleportEntry::trigger))
+                          .forGetter(AutoTeleportEntry::trigger),
+                      Codec.INT
+                          .optionalFieldOf("countdownSeconds", DEFAULT_COUNTDOWN_SECONDS)
+                          .forGetter(AutoTeleportEntry::countdownSeconds),
+                      Codec.BOOL
+                          .optionalFieldOf("skipMovementDetection", false)
+                          .forGetter(AutoTeleportEntry::skipMovementDetection))
                   .apply(instance, AutoTeleportEntry::new));
+  private static final int ALWAYS_TRIGGER_COUNTDOWN = 3;
+  private static final int DEATH_TRIGGER_COUNTDOWN = 0;
+
+  public AutoTeleportEntry(String targetDimension, Vec3 position, AutoTeleportTrigger trigger) {
+    this(
+        targetDimension,
+        position,
+        trigger,
+        getDefaultCountdownForTrigger(trigger),
+        shouldSkipMovementDetectionForTrigger(trigger));
+  }
+
+  private static int getDefaultCountdownForTrigger(AutoTeleportTrigger trigger) {
+    return switch (trigger) {
+      case ON_DEATH -> DEATH_TRIGGER_COUNTDOWN;
+      case ALWAYS -> ALWAYS_TRIGGER_COUNTDOWN;
+      default -> DEFAULT_COUNTDOWN_SECONDS;
+    };
+  }
+
+  private static boolean shouldSkipMovementDetectionForTrigger(AutoTeleportTrigger trigger) {
+    return trigger == AutoTeleportTrigger.ON_DEATH;
+  }
+
+  public AutoTeleportEntry withCountdown(int newCountdownSeconds) {
+    return new AutoTeleportEntry(
+        targetDimension, position, trigger, newCountdownSeconds, skipMovementDetection);
+  }
+
+  public AutoTeleportEntry withMovementDetection(boolean newSkipMovementDetection) {
+    return new AutoTeleportEntry(
+        targetDimension, position, trigger, countdownSeconds, newSkipMovementDetection);
+  }
+
+  public AutoTeleportEntry withPosition(Vec3 newPosition) {
+    return new AutoTeleportEntry(
+        targetDimension, newPosition, trigger, countdownSeconds, skipMovementDetection);
+  }
 }

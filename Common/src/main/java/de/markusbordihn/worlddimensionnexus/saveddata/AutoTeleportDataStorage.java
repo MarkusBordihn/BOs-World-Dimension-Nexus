@@ -185,23 +185,23 @@ public class AutoTeleportDataStorage extends SavedData {
         .orElse(false);
   }
 
-  public void setGlobalAutoTeleportRule(final AutoTeleportEntry entry) {
+  public void setAutoTeleportRule(final AutoTeleportEntry entry) {
     globalRulesList.removeIf(rule -> rule.trigger().equals(entry.trigger()));
     globalRulesList.add(entry);
     this.setDirty();
   }
 
-  public void clearAllGlobalAutoTeleportRules() {
+  public void clearAllAutoTeleportRules() {
     globalRulesList.clear();
     this.setDirty();
   }
 
-  public void removeGlobalAutoTeleportRule(AutoTeleportTrigger trigger) {
+  public void removeAutoTeleportRule(AutoTeleportTrigger trigger) {
     globalRulesList.removeIf(rule -> rule.trigger().equals(trigger));
     this.setDirty();
   }
 
-  public List<AutoTeleportEntry> getGlobalAutoTeleportRules() {
+  public List<AutoTeleportEntry> getAutoTeleportRules() {
     return new ArrayList<>(globalRulesList);
   }
 

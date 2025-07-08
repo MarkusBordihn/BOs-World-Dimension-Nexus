@@ -67,8 +67,18 @@ public class PlayerEvents {
 "Warning: The dimension is not fully loaded yet.
 The dimension and all entities will only be available as expected after a server restart.
 The current state may be used for preliminary testing, but does not accurately reflect the final dimension.""")
-              .withStyle(ChatFormatting.YELLOW);
+              .withStyle(ChatFormatting.RED);
       serverPlayer.sendSystemMessage(warningMessage);
     }
+  }
+
+  public static void handlePlayerDeathEvent(final ServerPlayer serverPlayer) {
+    // Mark player for death auto-teleport instead of executing immediately
+    AutoTeleportManager.markPlayerForDeathTeleport(serverPlayer);
+  }
+
+  public static void handlePlayerRespawnEvent(final ServerPlayer serverPlayer) {
+    // Execute death auto-teleport after respawn if marked
+    AutoTeleportManager.handlePlayerRespawn(serverPlayer);
   }
 }

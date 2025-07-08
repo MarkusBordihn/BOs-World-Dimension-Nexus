@@ -22,6 +22,7 @@ package de.markusbordihn.worlddimensionnexus.player;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
@@ -53,6 +54,20 @@ public class PlayerEventHandler {
   public static void onPlayerChangeDimension(final PlayerEvent.PlayerChangedDimensionEvent event) {
     if (event.getEntity() instanceof ServerPlayer serverPlayer) {
       PlayerEvents.handlePlayerChangeDimensionEvent(serverPlayer, event.getFrom(), event.getTo());
+    }
+  }
+
+  @SubscribeEvent
+  public static void onPlayerDeath(final LivingDeathEvent event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerDeathEvent(serverPlayer);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onPlayerRespawn(final PlayerEvent.PlayerRespawnEvent event) {
+    if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+      PlayerEvents.handlePlayerRespawnEvent(serverPlayer);
     }
   }
 }

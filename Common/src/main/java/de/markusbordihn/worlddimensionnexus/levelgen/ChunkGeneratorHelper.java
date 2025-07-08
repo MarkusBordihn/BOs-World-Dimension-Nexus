@@ -56,22 +56,20 @@ public class ChunkGeneratorHelper {
       final MinecraftServer server, final ChunkGeneratorType type) {
     Optional<ChunkGenerator> jsonChunkGenerator =
         JsonChunkGeneratorLoader.loadFromJson(server, type);
-    if (jsonChunkGenerator.isPresent()) {
-      return jsonChunkGenerator.get();
-    }
-
-    return switch (type) {
-      case FLAT -> getFlatChunkGenerator(server);
-      case NOISE -> getNoiseChunkGenerator(server, type);
-      case DEBUG -> getDebugChunkGenerator(server);
-      case VOID -> getVoidChunkGenerator(server);
-      case LOBBY -> getLobbyChunkGenerator(server);
-      case SKYBLOCK -> getSkyblockChunkGenerator(server);
-      case CAVE -> getCaveChunkGenerator(server);
-      case FLOATING_ISLANDS -> getFloatingIslandsChunkGenerator(server);
-      case AMPLIFIED -> getAmplifiedChunkGenerator(server);
-      default -> getCustomChunkGenerator(server, type);
-    };
+    return jsonChunkGenerator.orElseGet(
+        () ->
+            switch (type) {
+              case FLAT -> getFlatChunkGenerator(server);
+              case NOISE -> getNoiseChunkGenerator(server, type);
+              case DEBUG -> getDebugChunkGenerator(server);
+              case VOID -> getVoidChunkGenerator(server);
+              case LOBBY -> getLobbyChunkGenerator(server);
+              case SKYBLOCK -> getSkyblockChunkGenerator(server);
+              case CAVE -> getCaveChunkGenerator(server);
+              case FLOATING_ISLANDS -> getFloatingIslandsChunkGenerator(server);
+              case AMPLIFIED -> getAmplifiedChunkGenerator(server);
+              default -> getCustomChunkGenerator(server, type);
+            });
   }
 
   public static ChunkGenerator getCustomChunkGenerator(

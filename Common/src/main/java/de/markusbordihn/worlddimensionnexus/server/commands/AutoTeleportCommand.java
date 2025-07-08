@@ -19,15 +19,16 @@
 
 package de.markusbordihn.worlddimensionnexus.server.commands;
 
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
-import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.AutoTeleportTriggerSuggestion;
+import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
-import java.util.Collection;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -53,27 +54,7 @@ public class AutoTeleportCommand extends Command {
                         .suggests(AutoTeleportTriggerSuggestion.AUTO_TELEPORT_TRIGGERS)
                         .then(
                             Commands.argument("dimension", StringArgumentType.greedyString())
-                                .suggests(
-                                    (context, builder) -> {
-                                      // Add standard Minecraft dimensions
-                                      builder.suggest("minecraft:overworld");
-                                      builder.suggest("minecraft:nether");
-                                      builder.suggest("minecraft:the_end");
-
-                                      MinecraftServer server = context.getSource().getServer();
-                                      if (server != null) {
-                                        Collection<String> customDimensions =
-                                            DimensionManager.getDimensionNames();
-                                        for (String dimensionName : customDimensions) {
-                                          if (dimensionName != null
-                                              && !dimensionName.trim().isEmpty()
-                                              && dimensionName.matches("[a-z0-9_.-]+")) {
-                                            builder.suggest(Constants.MOD_ID + ":" + dimensionName);
-                                          }
-                                        }
-                                      }
-                                      return builder.buildFuture();
-                                    })
+                                .suggests(DimensionSuggestion.ALL_DIMENSIONS)
                                 .executes(
                                     context ->
                                         addAutoTeleportWithSpawn(
@@ -96,12 +77,70 @@ public class AutoTeleportCommand extends Command {
             Commands.literal("remove")
                 .then(
                     Commands.argument("trigger", StringArgumentType.string())
-                        .suggests(AutoTeleportTriggerSuggestion::suggestExistingTriggers)
+                        .suggests(
+                            (context, builder) ->
+                                AutoTeleportTriggerSuggestion.suggestExistingTriggers(builder))
                         .executes(
                             context ->
                                 removeAutoTeleport(
                                     context.getSource(),
                                     StringArgumentType.getString(context, "trigger")))))
+        .then(
+            Commands.literal("set")
+                .then(
+                    Commands.literal("position")
+                        .then(
+                            Commands.argument("trigger", StringArgumentType.string())
+                                .suggests(
+                                    (context, builder) ->
+                                        AutoTeleportTriggerSuggestion.suggestExistingTriggers(
+                                            builder))
+                                .then(
+                                    Commands.argument("position", BlockPosArgument.blockPos())
+                                        .executes(
+                                            context ->
+                                                setAutoTeleportPosition(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(
+                                                        context, "trigger"),
+                                                    BlockPosArgument.getBlockPos(
+                                                        context, "position"))))))
+                .then(
+                    Commands.literal("countdown")
+                        .then(
+                            Commands.argument("trigger", StringArgumentType.string())
+                                .suggests(
+                                    (context, builder) ->
+                                        AutoTeleportTriggerSuggestion.suggestExistingTriggers(
+                                            builder))
+                                .then(
+                                    Commands.argument("seconds", IntegerArgumentType.integer(0, 60))
+                                        .executes(
+                                            context ->
+                                                setAutoTeleportCountdown(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(
+                                                        context, "trigger"),
+                                                    IntegerArgumentType.getInteger(
+                                                        context, "seconds"))))))
+                .then(
+                    Commands.literal("movement_detection")
+                        .then(
+                            Commands.argument("trigger", StringArgumentType.string())
+                                .suggests(
+                                    (context, builder) ->
+                                        AutoTeleportTriggerSuggestion.suggestExistingTriggers(
+                                            builder))
+                                .then(
+                                    Commands.argument("enabled", BoolArgumentType.bool())
+                                        .executes(
+                                            context ->
+                                                setAutoTeleportMovementDetection(
+                                                    context.getSource(),
+                                                    StringArgumentType.getString(
+                                                        context, "trigger"),
+                                                    BoolArgumentType.getBool(
+                                                        context, "enabled")))))))
         .then(Commands.literal("list").executes(context -> listAutoTeleports(context.getSource())))
         .then(
             Commands.literal("clear").executes(context -> clearAutoTeleports(context.getSource())));
@@ -161,7 +200,7 @@ public class AutoTeleportCommand extends Command {
       return sendFailureMessage(source, "Dimension '" + dimension + "' does not exist!");
     }
 
-    AutoTeleportManager.addGlobalAutoTeleport(server.overworld(), trigger, dimension, position);
+    AutoTeleportManager.addAutoTeleport(server, trigger, dimension, position);
     MutableComponent message =
         Component.literal("Added auto-teleport rule for all players:")
             .withStyle(ChatFormatting.GREEN)
@@ -179,6 +218,22 @@ public class AutoTeleportCommand extends Command {
               .withStyle(ChatFormatting.AQUA));
     }
 
+    // Add information about trigger-specific settings
+    switch (trigger) {
+      case ON_DEATH ->
+          message.append(
+              Component.literal("\nSettings: No countdown, movement detection disabled")
+                  .withStyle(ChatFormatting.GRAY));
+      case ALWAYS ->
+          message.append(
+              Component.literal("\nSettings: 3 second countdown, movement detection enabled")
+                  .withStyle(ChatFormatting.GRAY));
+      default ->
+          message.append(
+              Component.literal("\nSettings: 5 second countdown, movement detection enabled")
+                  .withStyle(ChatFormatting.GRAY));
+    }
+
     return sendSuccessMessage(source, message);
   }
 
@@ -189,44 +244,97 @@ public class AutoTeleportCommand extends Command {
     if (trigger == null) {
       return sendFailureMessage(source, "Invalid trigger: " + triggerString);
     }
-    MinecraftServer server = source.getServer();
 
-    // Attempt to remove the auto-teleport rule
-    boolean removed = AutoTeleportManager.removeGlobalAutoTeleport(server.overworld(), trigger);
-    if (removed) {
+    if (AutoTeleportManager.removeAutoTeleport(trigger)) {
       return sendSuccessMessage(source, "Removed auto-teleport rule for trigger: " + triggerString);
-    } else {
-      return sendFailureMessage(
-          source, "No auto-teleport rule found for trigger: " + triggerString);
     }
+    return sendFailureMessage(source, "No auto-teleport rule found for trigger: " + triggerString);
+  }
+
+  private static int setAutoTeleportPosition(
+      final CommandSourceStack source, final String triggerString, final BlockPos position) {
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
+    if (trigger == null) {
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
+    }
+
+    Vec3 targetPosition = new Vec3(position.getX(), position.getY(), position.getZ());
+    if (AutoTeleportManager.setAutoTeleportPosition(trigger, targetPosition)) {
+      return sendSuccessMessage(
+          source, "Updated position for auto-teleport rule: " + triggerString);
+    }
+    return sendFailureMessage(
+        source, "Failed to update position for auto-teleport rule: " + triggerString);
+  }
+
+  private static int setAutoTeleportCountdown(
+      final CommandSourceStack source, final String triggerString, final int seconds) {
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
+    if (trigger == null) {
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
+    }
+
+    if (AutoTeleportManager.setAutoTeleportCountdown(trigger, seconds)) {
+      return sendSuccessMessage(
+          source, "Updated countdown for auto-teleport rule: " + triggerString);
+    }
+    return sendFailureMessage(
+        source, "Failed to update countdown for auto-teleport rule: " + triggerString);
+  }
+
+  private static int setAutoTeleportMovementDetection(
+      final CommandSourceStack source, final String triggerString, final boolean enabled) {
+    AutoTeleportTrigger trigger =
+        AutoTeleportTriggerSuggestion.parseTriggerFromString(triggerString);
+    if (trigger == null) {
+      return sendFailureMessage(source, "Invalid trigger: " + triggerString);
+    }
+
+    if (AutoTeleportManager.setAutoTeleportMovementDetection(trigger, enabled)) {
+      return sendSuccessMessage(
+          source, "Updated movement detection for auto-teleport rule: " + triggerString);
+    }
+    return sendFailureMessage(
+        source, "Failed to update movement detection for auto-teleport rule: " + triggerString);
   }
 
   private static int listAutoTeleports(final CommandSourceStack source) {
-    Map<AutoTeleportTrigger, String> rules = AutoTeleportManager.getGlobalAutoTeleportRules();
+    Map<AutoTeleportTrigger, String> rules = AutoTeleportManager.getAutoTeleportRules();
 
     if (rules.isEmpty()) {
       return sendSuccessMessage(
           source, "No auto-teleport rules configured.", ChatFormatting.YELLOW);
     }
 
-    MutableComponent message =
-        Component.literal("Global Auto-teleport Rules:").withStyle(ChatFormatting.GREEN);
-
-    for (Map.Entry<AutoTeleportTrigger, String> entry : rules.entrySet()) {
-      message
-          .append(Component.literal("\n• ").withStyle(ChatFormatting.GRAY))
-          .append(Component.literal(entry.getKey().toString()).withStyle(ChatFormatting.WHITE))
-          .append(Component.literal(" → ").withStyle(ChatFormatting.GRAY))
-          .append(Component.literal(entry.getValue()).withStyle(ChatFormatting.AQUA));
-    }
+    MutableComponent message = createAutoTeleportListHeader();
+    appendAutoTeleportRulesToMessage(message, rules);
 
     source.sendSuccess(() -> message, false);
     return SINGLE_SUCCESS;
   }
 
+  private static MutableComponent createAutoTeleportListHeader() {
+    return Component.literal("Global Auto-teleport Rules:").withStyle(ChatFormatting.GREEN);
+  }
+
+  private static void appendAutoTeleportRulesToMessage(
+      MutableComponent message, Map<AutoTeleportTrigger, String> rules) {
+    for (Map.Entry<AutoTeleportTrigger, String> entry : rules.entrySet()) {
+      AutoTeleportTrigger trigger = entry.getKey();
+      String destination = entry.getValue();
+
+      message
+          .append(Component.literal("\n• ").withStyle(ChatFormatting.GRAY))
+          .append(Component.literal(trigger.getSerializedName()).withStyle(ChatFormatting.WHITE))
+          .append(Component.literal(" → ").withStyle(ChatFormatting.GRAY))
+          .append(Component.literal(destination).withStyle(ChatFormatting.AQUA));
+    }
+  }
+
   private static int clearAutoTeleports(final CommandSourceStack source) {
-    MinecraftServer server = source.getServer();
-    AutoTeleportManager.clearAllGlobalAutoTeleports(server.overworld());
+    AutoTeleportManager.clearAllAutoTeleports();
     return sendSuccessMessage(source, "Cleared all auto-teleport rules for all players.");
   }
 }

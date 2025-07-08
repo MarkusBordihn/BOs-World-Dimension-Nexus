@@ -23,6 +23,7 @@ import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
 import de.markusbordihn.worlddimensionnexus.data.teleport.TeleportLocation;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import de.markusbordihn.worlddimensionnexus.gamemode.GameModeHistory;
 import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
@@ -34,6 +35,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -42,7 +44,6 @@ public class TeleportManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Teleport Manager");
   private static final Map<UUID, CountdownTeleport> countdownTeleports = new ConcurrentHashMap<>();
-  private static final int COUNTDOWN_SECONDS = 10;
   private static final double MOVEMENT_THRESHOLD = 0.5;
 
   private TeleportManager() {}
@@ -52,10 +53,10 @@ public class TeleportManager {
       return;
     }
 
-    // Process all pending teleports (no tick counter needed here anymore)
     for (Map.Entry<UUID, CountdownTeleport> entry : countdownTeleports.entrySet()) {
       UUID playerId = entry.getKey();
       CountdownTeleport countdown = entry.getValue();
+
       if (countdown.hasPlayerMoved()) {
         countdownTeleports.remove(playerId);
         sendMessage(countdown.player, "Teleport cancelled: You moved!", ChatFormatting.RED);
@@ -78,7 +79,10 @@ public class TeleportManager {
   }
 
   public static boolean startCountdownTeleport(
-      final ServerPlayer player, final String dimensionName) {
+      final ServerPlayer player,
+      final String dimensionName,
+      final int countdownSeconds,
+      final boolean enableMovementDetection) {
     UUID playerId = player.getUUID();
 
     if (countdownTeleports.containsKey(playerId)) {
@@ -93,25 +97,23 @@ public class TeleportManager {
       return false;
     }
 
-    CountdownTeleport countdown = new CountdownTeleport(player, dimensionName);
+    // If countdown is 0 or negative, teleport immediately
+    if (countdownSeconds <= 0) {
+      return safeTeleportToDimension(player, dimensionName);
+    }
+
+    CountdownTeleport countdown =
+        new CountdownTeleport(player, dimensionName, countdownSeconds, enableMovementDetection);
     countdownTeleports.put(playerId, countdown);
 
+    String movementWarning = enableMovementDetection ? "Please stand still!" : "";
     sendMessage(
         player,
-        String.format("Teleport to %s. Please stand still!", dimensionName),
+        String.format(
+            "Teleport to %s in %d seconds. %s", dimensionName, countdownSeconds, movementWarning),
         ChatFormatting.YELLOW);
 
     return true;
-  }
-
-  public static void cancelCountdownTeleport(final UUID playerId) {
-    if (countdownTeleports.remove(playerId) != null) {
-      log.debug("Cancelled countdown teleport for player {}", playerId);
-    }
-  }
-
-  public static int getPendingTeleportCount() {
-    return countdownTeleports.size();
   }
 
   private static void executeCountdownTeleport(final CountdownTeleport countdown) {
@@ -144,9 +146,32 @@ public class TeleportManager {
     recordCurrentLocation(serverPlayer);
     BlockPos teleportPos = getSafeTeleportLocation(serverPlayer, targetLevel, dimensionName);
     executePlayerTeleport(serverPlayer, targetLevel, teleportPos);
-    handlePostTeleportActions(serverPlayer, targetLevel, dimensionName);
+    handlePostTeleportActions(targetLevel, dimensionName);
+    handleGameTypeChange(serverPlayer, targetLevel);
 
     return true;
+  }
+
+  private static void recordCurrentLocation(final ServerPlayer serverPlayer) {
+    GameType currentGameType = serverPlayer.gameMode.getGameModeForPlayer();
+
+    TeleportHistory.recordLocation(
+        serverPlayer.getUUID(),
+        serverPlayer.level().dimension(),
+        serverPlayer.blockPosition(),
+        serverPlayer.getYRot(),
+        serverPlayer.getXRot(),
+        currentGameType);
+  }
+
+  private static void handleGameTypeChange(
+      final ServerPlayer serverPlayer, final ServerLevel targetLevel) {
+    DimensionInfoData dimensionInfo =
+        DimensionManager.getDimensionInfoData(targetLevel.dimension().location());
+    if (dimensionInfo != null) {
+      GameModeHistory.applyGameTypeForPlayer(
+          serverPlayer, targetLevel.dimension(), dimensionInfo.gameType());
+    }
   }
 
   public static boolean teleportBack(final ServerPlayer serverPlayer) {
@@ -161,16 +186,8 @@ public class TeleportManager {
     }
 
     executePlayerTeleport(serverPlayer, targetLevel, lastLocation);
+    GameModeHistory.restoreGameTypeFromHistory(serverPlayer, lastLocation.dimension());
     return true;
-  }
-
-  private static void recordCurrentLocation(final ServerPlayer serverPlayer) {
-    TeleportHistory.recordLocation(
-        serverPlayer.getUUID(),
-        serverPlayer.level().dimension(),
-        serverPlayer.blockPosition(),
-        serverPlayer.getYRot(),
-        serverPlayer.getXRot());
   }
 
   private static void executePlayerTeleport(
@@ -198,12 +215,12 @@ public class TeleportManager {
   }
 
   private static void handlePostTeleportActions(
-      final ServerPlayer serverPlayer, final ServerLevel targetLevel, final String dimensionName) {
+      final ServerLevel targetLevel, final String dimensionName) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfoData(dimensionName);
 
     if (dimensionInfo != null
         && dimensionInfo.chunkGeneratorType() == ChunkGeneratorType.SKYBLOCK) {
-      NetworkHandler.syncSkyblockSpawnChunk(serverPlayer, targetLevel);
+      NetworkHandler.syncSkyblockSpawnChunk(null, targetLevel);
     }
   }
 
@@ -228,12 +245,6 @@ public class TeleportManager {
       return getSkyblockSpawnLocation();
     }
 
-    // Try player spawn in dimension
-    BlockPos playerSpawn = getPlayerSpawnInDimension(serverPlayer, targetLevel);
-    if (playerSpawn != null) {
-      return playerSpawn;
-    }
-
     // Try world spawn
     BlockPos worldSpawn = targetLevel.getSharedSpawnPos();
     if (isSafeLocation(targetLevel, worldSpawn)) {
@@ -246,11 +257,6 @@ public class TeleportManager {
 
   private static BlockPos getSkyblockSpawnLocation() {
     return new BlockPos(8, 65, 8);
-  }
-
-  private static BlockPos getPlayerSpawnInDimension(
-      final ServerPlayer serverPlayer, final ServerLevel level) {
-    return null;
   }
 
   private static boolean isSafeLocation(final ServerLevel level, final BlockPos position) {
@@ -349,17 +355,24 @@ public class TeleportManager {
     final String targetDimension;
     final Vec3 startPosition;
     final ServerPlayer player;
+    final boolean enableMovementDetection;
     int remainingSeconds;
 
-    CountdownTeleport(final ServerPlayer player, final String targetDimension) {
+    CountdownTeleport(
+        final ServerPlayer player,
+        final String targetDimension,
+        final int countdownSeconds,
+        final boolean enableMovementDetection) {
       this.player = player;
       this.targetDimension = targetDimension;
       this.startPosition = player.position();
-      this.remainingSeconds = COUNTDOWN_SECONDS;
+      this.remainingSeconds = countdownSeconds;
+      this.enableMovementDetection = enableMovementDetection;
     }
 
     boolean hasPlayerMoved() {
-      return player.position().distanceTo(startPosition) > MOVEMENT_THRESHOLD;
+      return enableMovementDetection
+          && player.position().distanceTo(startPosition) > MOVEMENT_THRESHOLD;
     }
   }
 }

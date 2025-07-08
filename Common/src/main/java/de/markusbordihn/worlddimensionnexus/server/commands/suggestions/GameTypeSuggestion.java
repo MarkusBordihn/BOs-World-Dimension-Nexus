@@ -19,38 +19,36 @@
 
 package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
-import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.world.level.GameType;
 
-public class AutoTeleportTriggerSuggestion {
+public class GameTypeSuggestion {
 
-  public static final SuggestionProvider<CommandSourceStack> AUTO_TELEPORT_TRIGGERS =
-      (CommandContext<CommandSourceStack> context, SuggestionsBuilder suggestionsBuilder) -> {
-        for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-          suggestionsBuilder.suggest(trigger.getSerializedName());
+  public static final SuggestionProvider<CommandSourceStack> GAME_TYPES =
+      (context, builder) -> {
+        for (GameType gameType : GameType.values()) {
+          builder.suggest(gameType.getName());
         }
-        return suggestionsBuilder.buildFuture();
+        return builder.buildFuture();
+      };
+  public static final SuggestionProvider<CommandSourceStack> GAME_TYPE_NAMES =
+      (context, builder) -> {
+        String[] gameTypeNames = new String[GameType.values().length];
+        GameType[] gameTypes = GameType.values();
+        for (int i = 0; i < gameTypes.length; i++) {
+          gameTypeNames[i] = gameTypes[i].getName();
+        }
+        return SharedSuggestionProvider.suggest(gameTypeNames, builder);
       };
 
-  private AutoTeleportTriggerSuggestion() {}
+  private GameTypeSuggestion() {}
 
-  public static CompletableFuture<Suggestions> suggestExistingTriggers(
-      final SuggestionsBuilder suggestionsBuilder) {
-    for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-      suggestionsBuilder.suggest(trigger.getSerializedName());
-    }
-    return suggestionsBuilder.buildFuture();
-  }
-
-  public static AutoTeleportTrigger parseTriggerFromString(final String triggerString) {
-    for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-      if (trigger.getSerializedName().equalsIgnoreCase(triggerString)) {
-        return trigger;
+  public static GameType parseGameType(String gameTypeString) {
+    for (GameType gameType : GameType.values()) {
+      if (gameType.getName().equalsIgnoreCase(gameTypeString)) {
+        return gameType;
       }
     }
     return null;

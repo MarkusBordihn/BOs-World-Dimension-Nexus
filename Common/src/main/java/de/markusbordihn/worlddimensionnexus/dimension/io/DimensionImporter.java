@@ -102,9 +102,8 @@ public class DimensionImporter {
       }
 
       log.info(
-          "Imported dimension {}:{} from {}",
-          finalDimensionInfo.namespace(),
-          finalDimensionInfo.path(),
+          "Imported dimension {} from {}",
+          finalDimensionInfo.resourceLocation(),
           importFile.getName());
       return true;
     } finally {
@@ -184,7 +183,10 @@ public class DimensionImporter {
       throws IOException {
     Path worldDir = minecraftServer.getWorldPath(LevelResource.ROOT);
     Path targetDir =
-        worldDir.resolve(DIMENSIONS_DIR).resolve(importData.namespace()).resolve(importData.path());
+        worldDir
+            .resolve(DIMENSIONS_DIR)
+            .resolve(importData.resourceLocation().getNamespace())
+            .resolve(importData.resourceLocation().getPath());
     Files.createDirectories(targetDir);
 
     try (Stream<Path> files = Files.walk(tempDir)) {
@@ -237,15 +239,15 @@ public class DimensionImporter {
     }
 
     if (fileBasedDimensionInfo != null
-        && fileBasedDimensionInfo.name() != null
-        && !fileBasedDimensionInfo.name().trim().isEmpty()) {
-      return fileBasedDimensionInfo.name();
+        && fileBasedDimensionInfo.displayName() != null
+        && !fileBasedDimensionInfo.displayName().trim().isEmpty()) {
+      return fileBasedDimensionInfo.displayName();
     }
 
     if (fileBasedDimensionInfo != null
-        && fileBasedDimensionInfo.path() != null
-        && !fileBasedDimensionInfo.path().trim().isEmpty()) {
-      return fileBasedDimensionInfo.path();
+        && fileBasedDimensionInfo.resourceLocation().getPath() != null
+        && !fileBasedDimensionInfo.resourceLocation().getPath().trim().isEmpty()) {
+      return fileBasedDimensionInfo.resourceLocation().getPath();
     }
 
     return importFile.getName().replaceAll(FILE_EXTENSION_PATTERN, "");
@@ -273,15 +275,15 @@ public class DimensionImporter {
 
     if (fileBasedDimensionInfo != null) {
       return new DimensionInfoData(
-          Constants.MOD_ID,
-          finalDimensionName,
-          fileBasedDimensionInfo.type(),
+          ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, finalDimensionName),
+          fileBasedDimensionInfo.dimensionTypeKey(),
           finalDimensionName,
           fileBasedDimensionInfo.description(),
           fileBasedDimensionInfo.isCustom(),
           finalChunkGeneratorType,
           true,
-          fileBasedDimensionInfo.spawnPoint());
+          fileBasedDimensionInfo.spawnPoint(),
+          fileBasedDimensionInfo.gameType());
     }
 
     return DimensionInfoData.fromDimensionNameAndType(finalDimensionName, finalChunkGeneratorType);

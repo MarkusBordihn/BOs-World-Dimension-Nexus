@@ -19,38 +19,34 @@
 
 package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
-import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
-import java.util.concurrent.CompletableFuture;
+import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
 
-public class AutoTeleportTriggerSuggestion {
+public class ChunkGeneratorTypeSuggestion {
 
-  public static final SuggestionProvider<CommandSourceStack> AUTO_TELEPORT_TRIGGERS =
-      (CommandContext<CommandSourceStack> context, SuggestionsBuilder suggestionsBuilder) -> {
-        for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-          suggestionsBuilder.suggest(trigger.getSerializedName());
+  public static final SuggestionProvider<CommandSourceStack> CHUNK_GENERATOR_TYPES =
+      (context, builder) -> {
+        for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
+          builder.suggest(type.getName());
         }
-        return suggestionsBuilder.buildFuture();
+        return builder.buildFuture();
       };
 
-  private AutoTeleportTriggerSuggestion() {}
+  public static final SuggestionProvider<CommandSourceStack> CHUNK_GENERATOR_NAMES =
+      (context, builder) -> {
+        String[] typeNames = new String[ChunkGeneratorType.values().length];
+        for (int i = 0; i < ChunkGeneratorType.values().length; i++) {
+          typeNames[i] = ChunkGeneratorType.values()[i].getName();
+        }
+        return SharedSuggestionProvider.suggest(typeNames, builder);
+      };
 
-  public static CompletableFuture<Suggestions> suggestExistingTriggers(
-      final SuggestionsBuilder suggestionsBuilder) {
-    for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-      suggestionsBuilder.suggest(trigger.getSerializedName());
-    }
-    return suggestionsBuilder.buildFuture();
-  }
-
-  public static AutoTeleportTrigger parseTriggerFromString(final String triggerString) {
-    for (AutoTeleportTrigger trigger : AutoTeleportTrigger.values()) {
-      if (trigger.getSerializedName().equalsIgnoreCase(triggerString)) {
-        return trigger;
+  public static ChunkGeneratorType parseChunkGeneratorType(String typeName) {
+    for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
+      if (type.getName().equalsIgnoreCase(typeName)) {
+        return type;
       }
     }
     return null;

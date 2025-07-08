@@ -24,10 +24,16 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 
 public record TeleportLocation(
-    ResourceKey<Level> dimension, BlockPos position, float yRot, float xRot, long timestamp) {
+    ResourceKey<Level> dimension,
+    BlockPos position,
+    float yRot,
+    float xRot,
+    long timestamp,
+    GameType gameType) {
 
   public static final Codec<TeleportLocation> CODEC =
       RecordCodecBuilder.create(
@@ -40,14 +46,26 @@ public record TeleportLocation(
                       BlockPos.CODEC.fieldOf("position").forGetter(TeleportLocation::position),
                       Codec.FLOAT.fieldOf("yRot").forGetter(TeleportLocation::yRot),
                       Codec.FLOAT.fieldOf("xRot").forGetter(TeleportLocation::xRot),
-                      Codec.LONG.fieldOf("timestamp").forGetter(TeleportLocation::timestamp))
+                      Codec.LONG.fieldOf("timestamp").forGetter(TeleportLocation::timestamp),
+                      GameType.CODEC
+                          .optionalFieldOf("gameType", GameType.SURVIVAL)
+                          .forGetter(TeleportLocation::gameType))
                   .apply(instance, TeleportLocation::new));
 
   public TeleportLocation(
       final ResourceKey<Level> dimension,
       final BlockPos blockPos,
       final float yRot,
+      final float xRot,
+      final GameType gameType) {
+    this(dimension, blockPos, yRot, xRot, System.currentTimeMillis(), gameType);
+  }
+
+  public TeleportLocation(
+      final ResourceKey<Level> dimension,
+      final BlockPos blockPos,
+      final float yRot,
       final float xRot) {
-    this(dimension, blockPos, yRot, xRot, System.currentTimeMillis());
+    this(dimension, blockPos, yRot, xRot, System.currentTimeMillis(), GameType.SURVIVAL);
   }
 }
