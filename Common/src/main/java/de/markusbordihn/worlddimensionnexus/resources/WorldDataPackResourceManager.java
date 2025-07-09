@@ -55,7 +55,8 @@ public class WorldDataPackResourceManager {
     List<String> dimensionFiles = new ArrayList<>();
 
     try {
-      java.net.URL resourceUrl = WorldDataPackResourceManager.class.getResource(DIMENSIONS_RESOURCE_PATH);
+      java.net.URL resourceUrl =
+          WorldDataPackResourceManager.class.getResource(DIMENSIONS_RESOURCE_PATH);
       if (resourceUrl == null) {
         log.warn("Dimensions resource path not found: {}", DIMENSIONS_RESOURCE_PATH);
         return dimensionFiles;
@@ -65,12 +66,17 @@ public class WorldDataPackResourceManager {
 
       if (resourceUri.getScheme().equals("jar")) {
         // Running from JAR file
-        try (FileSystem fileSystem = FileSystems.newFileSystem(resourceUri, Collections.emptyMap())) {
+        try (FileSystem fileSystem =
+            FileSystems.newFileSystem(resourceUri, Collections.emptyMap())) {
           Path dimensionsPath = fileSystem.getPath(DIMENSIONS_RESOURCE_PATH);
           if (Files.exists(dimensionsPath)) {
             try (Stream<Path> files = Files.list(dimensionsPath)) {
-              files.filter(path -> path.toString().endsWith(".wdn"))
-                  .forEach(path -> dimensionFiles.add(DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
+              files
+                  .filter(path -> path.toString().endsWith(".wdn"))
+                  .forEach(
+                      path ->
+                          dimensionFiles.add(
+                              DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
             }
           }
         }
@@ -79,8 +85,12 @@ public class WorldDataPackResourceManager {
         Path dimensionsPath = Paths.get(resourceUri);
         if (Files.exists(dimensionsPath)) {
           try (Stream<Path> files = Files.list(dimensionsPath)) {
-            files.filter(path -> path.toString().endsWith(".wdn"))
-                .forEach(path -> dimensionFiles.add(DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
+            files
+                .filter(path -> path.toString().endsWith(".wdn"))
+                .forEach(
+                    path ->
+                        dimensionFiles.add(
+                            DIMENSIONS_RESOURCE_PATH + "/" + path.getFileName().toString()));
           }
         }
       }

@@ -26,6 +26,7 @@ import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -148,6 +149,17 @@ public class PortalDataStorage extends SavedData {
     }
     if (targetList.remove(target)) {
       log.info("Removed target: {}", target.portalId());
+      this.setDirty();
+    }
+  }
+
+  public void removeTarget(final UUID portalId) {
+    if (portalId == null) {
+      log.warn("Cannot remove target with null portal ID.");
+      return;
+    }
+    if (targetList.removeIf(target -> portalId.equals(target.portalId()))) {
+      log.info("Removed target for portal: {}", portalId);
       this.setDirty();
     }
   }

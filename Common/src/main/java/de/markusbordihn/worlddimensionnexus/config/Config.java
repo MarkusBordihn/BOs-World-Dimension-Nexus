@@ -144,6 +144,19 @@ public class Config {
     }
   }
 
+  protected static String parseConfigValue(
+      final Properties properties, final String key, final String defaultValue) {
+    if (properties.containsKey(key)) {
+      try {
+        return properties.getProperty(key).trim();
+      } catch (Exception e) {
+        log.error("Failed to parse String value for key {}:", key, e);
+      }
+    }
+    properties.setProperty(key, defaultValue);
+    return defaultValue;
+  }
+
   protected static int parseConfigValue(
       final Properties properties, final String key, final int defaultValue) {
     if (properties.containsKey(key)) {

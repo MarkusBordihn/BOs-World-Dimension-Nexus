@@ -57,4 +57,11 @@ public class WoolColor {
   public static Optional<DyeColor> get(final Block block) {
     return Optional.ofNullable(WOOL_BLOCK_COLOR_MAP.get(block));
   }
+
+  public static Optional<Block> getBlock(final DyeColor color) {
+    return WOOL_BLOCK_COLOR_MAP.entrySet().stream()
+        .filter(entry -> entry.getValue() == color)
+        .map(Map.Entry::getKey)
+        .findFirst();
+  }
 }

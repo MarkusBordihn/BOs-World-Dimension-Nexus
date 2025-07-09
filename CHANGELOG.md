@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# v0.3.0
+
+- Added Portal and Event Portal commands.
+- Added player, world, unbound and event portals.
+- Smaller refactorings and improvements.
+- Updated wiki documentation.
+
 # v0.2.0
 
 - Fixed and improved wiki documentation.

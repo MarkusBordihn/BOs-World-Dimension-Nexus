@@ -138,8 +138,7 @@ public class TeleportHistoryDataStorage extends SavedData {
   }
 
   public void clearPlayerHistory(final UUID playerId) {
-    boolean removed = this.playerHistories.remove(playerId) != null;
-    if (removed) {
+    if (this.playerHistories.remove(playerId) != null) {
       this.setDirty();
       log.info("Cleared teleport history for player: {}", playerId);
     }

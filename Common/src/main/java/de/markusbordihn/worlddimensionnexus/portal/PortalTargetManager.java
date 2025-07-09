@@ -21,14 +21,14 @@ package de.markusbordihn.worlddimensionnexus.portal;
 
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalTargetData;
-import de.markusbordihn.worlddimensionnexus.service.PortalService;
-import de.markusbordihn.worlddimensionnexus.service.TeleportService;
+import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,111 +37,147 @@ import net.minecraft.world.level.Level;
 public class PortalTargetManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Target Manager");
+  private static final Map<UUID, PortalTargetData> portalTargets = new ConcurrentHashMap<>();
 
   private PortalTargetManager() {}
 
   public static void sync(final List<PortalTargetData> targetList) {
-    PortalService.syncTargets(targetList);
+    if (targetList == null || targetList.isEmpty()) {
+      log.warn("Portal target list is null or empty!");
+      clear();
+      return;
+    }
+
+    log.info("Synchronizing {} portal targets ...", targetList.size());
+    clear();
+
+    for (PortalTargetData portalTarget : targetList) {
+      if (portalTarget != null && portalTarget.portalId() != null) {
+        portalTargets.put(portalTarget.portalId(), portalTarget);
+      }
+    }
   }
 
   public static void autoLinkPortal(
       final PortalInfoData portalInfo,
       final List<PortalInfoData> dimensionPortals,
       final Iterable<PortalInfoData> allPortals) {
-    PortalService.autoLinkPortal(portalInfo, dimensionPortals, allPortals);
+
+    if (portalInfo == null || portalInfo.uuid() == null || getTarget(portalInfo) != null) {
+      return;
+    }
+    PortalInfoData linkedPortal = null;
+
+    if (dimensionPortals != null) {
+      linkedPortal = findMatchingPortal(portalInfo, dimensionPortals);
+    }
+
+    if (linkedPortal == null && allPortals != null) {
+      linkedPortal = findMatchingPortal(portalInfo, allPortals);
+    }
+
+    if (linkedPortal != null) {
+      log.info("Auto-linking portals: {} <-> {}", portalInfo.uuid(), linkedPortal.uuid());
+      setTarget(portalInfo, linkedPortal);
+      setTarget(linkedPortal, portalInfo);
+    }
   }
 
+  private static PortalInfoData findMatchingPortal(
+      final PortalInfoData portalInfo, final Iterable<PortalInfoData> potentialMatches) {
+    for (PortalInfoData existingPortal : potentialMatches) {
+      if (existingPortal != null
+          && !existingPortal.uuid().equals(portalInfo.uuid())
+          && existingPortal.edgeBlockType() == portalInfo.edgeBlockType()
+          && existingPortal.color() == portalInfo.color()) {
+        return existingPortal;
+      }
+    }
+    return null;
+  }
+
+  // Target CRUD Operations
   public static PortalTargetData getTarget(final PortalInfoData portalInfo) {
-    return PortalService.getTarget(portalInfo);
+    if (portalInfo == null || portalInfo.uuid() == null) {
+      return null;
+    }
+    return portalTargets.get(portalInfo.uuid());
   }
 
   public static void setTarget(final PortalInfoData portalInfo, final PortalInfoData target) {
-    PortalService.setTarget(portalInfo, target);
+    if (portalInfo == null || target == null) {
+      return;
+    }
+    setTarget(portalInfo, target.dimension(), target.getTeleportPosition());
   }
 
   public static void setTarget(
       final PortalInfoData portalInfo,
       final ResourceKey<Level> targetDimension,
       final BlockPos targetPosition) {
-    PortalService.setTarget(portalInfo, targetDimension, targetPosition);
+    if (portalInfo == null || targetDimension == null || targetPosition == null) {
+      return;
+    }
+
+    UUID portalId = portalInfo.uuid();
+    PortalTargetData targetData = new PortalTargetData(portalId, targetDimension, targetPosition);
+    portalTargets.put(portalId, targetData);
+    PortalDataStorage.get().addTarget(targetData);
   }
 
   public static void removeTarget(final PortalInfoData portalInfo) {
-    PortalService.removeTarget(portalInfo);
+    if (portalInfo != null && portalInfo.uuid() != null) {
+      removeTarget(portalInfo.uuid());
+    }
   }
 
   public static void removeTarget(final UUID portalUUID) {
-    PortalService.removeTarget(portalUUID);
+    if (portalUUID != null) {
+      portalTargets.remove(portalUUID);
+      PortalDataStorage.get().removeTarget(portalUUID);
+    }
   }
 
   public static void clear() {
-    PortalService.clear();
+    portalTargets.clear();
   }
 
-  public static void teleportPlayerWithDelay(
+  public static boolean teleportPlayerWithDelay(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,
       final PortalInfoData portalInfo) {
+
     UUID playerId = serverPlayer.getUUID();
     long currentTick = serverLevel.getGameTime();
 
-    PortalTargetData portalTarget = PortalService.getTarget(portalInfo);
+    PortalTargetData portalTarget = getTarget(portalInfo);
     if (portalTarget == null) {
-      return;
+      log.debug("No target found for portal {}", portalInfo.uuid());
+      return false;
     }
 
-    if (TeleportService.hasPlayerLeftPortal(playerId, currentTick)) {
-      return;
+    if (PortalTeleportHelper.hasPlayerLeftPortal(playerId, currentTick)) {
+      return false;
     }
 
-    if (TeleportService.startTeleportDelay(playerId, currentTick)) {
-      TeleportService.applyTeleportEffects(serverLevel, serverPlayer);
-      return;
+    if (PortalTeleportHelper.startPortalTeleportDelay(playerId, currentTick)) {
+      PortalTeleportHelper.applyPortalEffects(serverLevel, serverPlayer);
+      return false;
     }
 
-    if (TeleportService.isTeleportDelayExpired(playerId, currentTick)) {
-      teleportPlayer(serverLevel, serverPlayer, portalInfo);
-    }
-  }
+    if (PortalTeleportHelper.isPortalTeleportReady(playerId, currentTick)) {
+      PortalTeleportHelper.playPortalSound(serverLevel, serverPlayer.blockPosition());
+      boolean success =
+          PortalTeleportHelper.executeTeleport(
+              serverPlayer, portalTarget.dimension(), portalTarget.position());
 
-  public static void teleportPlayer(
-      final ServerLevel serverLevel,
-      final ServerPlayer serverPlayer,
-      final PortalInfoData portalInfo) {
-    if (serverLevel == null || serverPlayer == null || portalInfo == null) {
-      return;
-    }
+      if (success) {
+        PortalTeleportHelper.clearPlayerPortalState(playerId);
+      }
 
-    PortalTargetData portalTarget = PortalService.getTarget(portalInfo);
-    if (portalTarget == null) {
-      log.error("No portal target found for portal: {}", portalInfo);
-      serverPlayer.sendSystemMessage(
-          Component.literal("Error: No valid portal target found for teleportation."));
-      return;
+      return success;
     }
 
-    UUID playerUUID = serverPlayer.getUUID();
-    if (TeleportService.isPlayerOnCooldown(serverPlayer, serverLevel.getGameTime())) {
-      return;
-    }
-
-    ServerLevel targetLevel = serverPlayer.server.getLevel(portalTarget.dimension());
-    if (targetLevel == null) {
-      log.error("Target level {} not found for portal: {}", portalTarget.dimension(), portalInfo);
-      serverPlayer.sendSystemMessage(
-          Component.literal("Error: Target dimension not found for teleportation."));
-      return;
-    }
-
-    TeleportService.setPlayerCooldown(playerUUID, serverLevel.getGameTime());
-    TeleportService.playTeleportSound(serverLevel, portalInfo.origin());
-
-    serverPlayer.teleportTo(
-        targetLevel,
-        portalTarget.position().getX(),
-        portalTarget.position().getY(),
-        portalTarget.position().getZ(),
-        serverPlayer.getYRot(),
-        serverPlayer.getXRot());
+    return false;
   }
 }

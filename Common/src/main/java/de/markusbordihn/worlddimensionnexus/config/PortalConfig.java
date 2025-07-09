@@ -19,8 +19,11 @@
 
 package de.markusbordihn.worlddimensionnexus.config;
 
+import de.markusbordihn.worlddimensionnexus.data.block.BlockRegistry;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalType;
 import java.io.File;
 import java.util.Properties;
+import net.minecraft.world.level.block.Block;
 
 @SuppressWarnings({"java:S1104", "java:S1444", "java:S3008"})
 public class PortalConfig extends Config {
@@ -30,6 +33,16 @@ public class PortalConfig extends Config {
 """
 Portal Configuration
 This file contains the configuration for portals, including teleport delays, cooldowns, and effects.
+
+Portal Types Configuration:
+- Player portals are bound to specific players and can only link to portals from the same creator
+- World portals are bound to the same dimension and can only link within that dimension
+- Unbound portals can link to any other unbound portal across dimensions
+- Event portals are one-way teleports with no return portal (moderator only)
+
+Corner Block Configuration:
+You can change the corner blocks for each portal type to match your server requirements.
+Use minecraft block IDs (e.g., minecraft:diamond_block, minecraft:emerald_block)
 
 """;
 
@@ -52,6 +65,24 @@ This file contains the configuration for portals, including teleport delays, coo
   // Auto-Link settings
   public static boolean AUTO_LINK_PORTALS = true;
   public static boolean AUTO_LINK_ACROSS_DIMENSIONS = true;
+
+  // Portal type activation settings
+  public static boolean ENABLE_PLAYER_PORTALS = true;
+  public static boolean ENABLE_WORLD_PORTALS = true;
+  public static boolean ENABLE_UNBOUND_PORTALS = true;
+  public static boolean ENABLE_EVENT_PORTALS = true;
+
+  // Portal corner block settings (using block names for config compatibility)
+  public static String PLAYER_PORTAL_CORNER_BLOCK = "minecraft:diamond_block";
+  public static String WORLD_PORTAL_CORNER_BLOCK = "minecraft:emerald_block";
+  public static String UNBOUND_PORTAL_CORNER_BLOCK = "minecraft:netherite_block";
+  public static String EVENT_PORTAL_CORNER_BLOCK = "minecraft:beacon";
+
+  // Portal limits configuration
+  public static int PLAYER_PORTAL_MAX_LINKS = 2;
+  public static int WORLD_PORTAL_MAX_LINKS = 2;
+  public static int UNBOUND_PORTAL_MAX_LINKS = 2;
+  public static int EVENT_PORTAL_MAX_LINKS = -1; // -1 means unlimited
 
   public static void registerConfig() {
     registerConfigFile(CONFIG_FILE_NAME, CONFIG_FILE_HEADER);
@@ -88,7 +119,72 @@ This file contains the configuration for portals, including teleport delays, coo
         parseConfigValue(
             properties, "Portal:AutoLinkAcrossDimensions", AUTO_LINK_ACROSS_DIMENSIONS);
 
+    // Portal type activation settings
+    ENABLE_PLAYER_PORTALS =
+        parseConfigValue(properties, "PortalTypes:EnablePlayerPortals", ENABLE_PLAYER_PORTALS);
+    ENABLE_WORLD_PORTALS =
+        parseConfigValue(properties, "PortalTypes:EnableWorldPortals", ENABLE_WORLD_PORTALS);
+    ENABLE_UNBOUND_PORTALS =
+        parseConfigValue(properties, "PortalTypes:EnableUnboundPortals", ENABLE_UNBOUND_PORTALS);
+    ENABLE_EVENT_PORTALS =
+        parseConfigValue(properties, "PortalTypes:EnableEventPortals", ENABLE_EVENT_PORTALS);
+
+    // Portal corner block settings
+    PLAYER_PORTAL_CORNER_BLOCK =
+        parseConfigValue(
+            properties, "PortalBlocks:PlayerPortalCornerBlock", PLAYER_PORTAL_CORNER_BLOCK);
+    WORLD_PORTAL_CORNER_BLOCK =
+        parseConfigValue(
+            properties, "PortalBlocks:WorldPortalCornerBlock", WORLD_PORTAL_CORNER_BLOCK);
+    UNBOUND_PORTAL_CORNER_BLOCK =
+        parseConfigValue(
+            properties, "PortalBlocks:UnboundPortalCornerBlock", UNBOUND_PORTAL_CORNER_BLOCK);
+    EVENT_PORTAL_CORNER_BLOCK =
+        parseConfigValue(
+            properties, "PortalBlocks:EventPortalCornerBlock", EVENT_PORTAL_CORNER_BLOCK);
+
+    // Portal limits configuration
+    PLAYER_PORTAL_MAX_LINKS =
+        parseConfigValue(properties, "PortalLimits:PlayerPortalMaxLinks", PLAYER_PORTAL_MAX_LINKS);
+    WORLD_PORTAL_MAX_LINKS =
+        parseConfigValue(properties, "PortalLimits:WorldPortalMaxLinks", WORLD_PORTAL_MAX_LINKS);
+    UNBOUND_PORTAL_MAX_LINKS =
+        parseConfigValue(
+            properties, "PortalLimits:UnboundPortalMaxLinks", UNBOUND_PORTAL_MAX_LINKS);
+    EVENT_PORTAL_MAX_LINKS =
+        parseConfigValue(properties, "PortalLimits:EventPortalMaxLinks", EVENT_PORTAL_MAX_LINKS);
+
     // Update config file if needed
     updateConfigFileIfChanged(configFile, CONFIG_FILE_HEADER, properties, unmodifiedProperties);
+  }
+
+  public static Block getCornerBlockForPortalType(PortalType portalType) {
+    String blockName =
+        switch (portalType) {
+          case PLAYER -> PLAYER_PORTAL_CORNER_BLOCK;
+          case WORLD -> WORLD_PORTAL_CORNER_BLOCK;
+          case UNBOUND -> UNBOUND_PORTAL_CORNER_BLOCK;
+          case EVENT -> EVENT_PORTAL_CORNER_BLOCK;
+        };
+
+    return BlockRegistry.getBlockFromName(blockName);
+  }
+
+  public static boolean isPortalTypeEnabled(PortalType portalType) {
+    return switch (portalType) {
+      case PLAYER -> ENABLE_PLAYER_PORTALS;
+      case WORLD -> ENABLE_WORLD_PORTALS;
+      case UNBOUND -> ENABLE_UNBOUND_PORTALS;
+      case EVENT -> ENABLE_EVENT_PORTALS;
+    };
+  }
+
+  public static int getMaxLinksForPortalType(PortalType portalType) {
+    return switch (portalType) {
+      case PLAYER -> PLAYER_PORTAL_MAX_LINKS;
+      case WORLD -> WORLD_PORTAL_MAX_LINKS;
+      case UNBOUND -> UNBOUND_PORTAL_MAX_LINKS;
+      case EVENT -> EVENT_PORTAL_MAX_LINKS;
+    };
   }
 }

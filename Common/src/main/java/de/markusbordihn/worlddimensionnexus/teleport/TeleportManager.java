@@ -21,6 +21,7 @@ package de.markusbordihn.worlddimensionnexus.teleport;
 
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
+import de.markusbordihn.worlddimensionnexus.data.teleport.CountdownTeleportData;
 import de.markusbordihn.worlddimensionnexus.data.teleport.TeleportLocation;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
 import de.markusbordihn.worlddimensionnexus.gamemode.GameModeHistory;
@@ -40,13 +41,12 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class TeleportManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Teleport Manager");
-  private static final Map<UUID, CountdownTeleport> countdownTeleports = new ConcurrentHashMap<>();
-  private static final double MOVEMENT_THRESHOLD = 0.5;
+  private static final Map<UUID, CountdownTeleportData> countdownTeleports =
+      new ConcurrentHashMap<>();
 
   private TeleportManager() {}
 
@@ -55,63 +55,67 @@ public class TeleportManager {
       return;
     }
 
-    for (Map.Entry<UUID, CountdownTeleport> entry : countdownTeleports.entrySet()) {
+    for (Map.Entry<UUID, CountdownTeleportData> entry : countdownTeleports.entrySet()) {
       UUID playerId = entry.getKey();
-      CountdownTeleport countdown = entry.getValue();
+      CountdownTeleportData countdown = entry.getValue();
 
       if (countdown.hasPlayerMoved()) {
         countdownTeleports.remove(playerId);
-        sendMessage(countdown.player, "Teleport cancelled: You moved!", ChatFormatting.RED);
+        sendMessage(
+            countdown.getServerPlayer(), "Teleport cancelled: You moved!", ChatFormatting.RED);
         continue;
       }
 
-      countdown.remainingSeconds--;
-      if (countdown.remainingSeconds <= 0) {
+      CountdownTeleportData updatedCountdown = countdown.decrementCountdown();
+      if (updatedCountdown.isCountdownFinished()) {
         countdownTeleports.remove(playerId);
-        executeCountdownTeleport(countdown);
+        executeCountdownTeleport(updatedCountdown);
       } else {
+        countdownTeleports.put(playerId, updatedCountdown);
         sendMessage(
-            countdown.player,
+            updatedCountdown.getServerPlayer(),
             String.format(
                 "Teleport to %s in %d seconds...",
-                countdown.targetDimension, countdown.remainingSeconds),
+                updatedCountdown.getTargetDimension(), updatedCountdown.getRemainingSeconds()),
             ChatFormatting.YELLOW);
       }
     }
   }
 
   public static boolean startCountdownTeleport(
-      final ServerPlayer player,
+      final ServerPlayer serverPlayer,
       final ResourceKey<Level> dimensionKey,
       final int countdownSeconds,
       final boolean enableMovementDetection) {
-    UUID playerId = player.getUUID();
+    UUID playerId = serverPlayer.getUUID();
 
     if (countdownTeleports.containsKey(playerId)) {
       log.debug(
-          "Player {} already has a countdown teleport in progress", player.getName().getString());
+          "Player {} already has a countdown teleport in progress",
+          serverPlayer.getName().getString());
       return false;
     }
 
-    ServerLevel targetLevel = player.server.getLevel(dimensionKey);
+    ServerLevel targetLevel = serverPlayer.server.getLevel(dimensionKey);
     if (targetLevel == null) {
       log.warn("Dimension {} does not exist for countdown teleport", dimensionKey.location());
-      sendMessage(player, "Target dimension is not available.", ChatFormatting.RED);
+      sendMessage(serverPlayer, "Target dimension is not available.", ChatFormatting.RED);
       return false;
     }
 
     // If countdown is 0 or negative, teleport immediately
     if (countdownSeconds <= 0) {
-      return safeTeleportToDimension(player, dimensionKey);
+      return safeTeleportToDimension(serverPlayer, dimensionKey);
     }
 
-    CountdownTeleport countdown =
-        new CountdownTeleport(player, dimensionKey, countdownSeconds, enableMovementDetection);
+    CountdownTeleportData countdown =
+        new CountdownTeleportData(
+            serverPlayer, dimensionKey, countdownSeconds, enableMovementDetection);
     countdownTeleports.put(playerId, countdown);
 
     String movementWarning = enableMovementDetection ? "Please stand still!" : "";
     sendMessage(
-        player,
+        serverPlayer,
         String.format(
             "Teleport to %s in %d seconds. %s",
             dimensionKey.location(), countdownSeconds, movementWarning),
@@ -120,24 +124,25 @@ public class TeleportManager {
     return true;
   }
 
-  private static void executeCountdownTeleport(final CountdownTeleport countdown) {
-    if (safeTeleportToDimension(countdown.player, countdown.targetDimensionKey)) {
+  private static void executeCountdownTeleport(final CountdownTeleportData countdown) {
+    if (safeTeleportToDimension(countdown.getServerPlayer(), countdown.getTargetDimensionKey())) {
       sendMessage(
-          countdown.player,
-          String.format("Successfully teleported to %s!", countdown.targetDimensionKey.location()),
+          countdown.getServerPlayer(),
+          String.format(
+              "Successfully teleported to %s!", countdown.getTargetDimensionKey().location()),
           ChatFormatting.GREEN);
     } else {
       sendMessage(
-          countdown.player,
+          countdown.getServerPlayer(),
           "Failed to teleport to dimension. Please try again later.",
           ChatFormatting.RED);
     }
   }
 
   private static void sendMessage(
-      final ServerPlayer player, final String message, final ChatFormatting color) {
+      final ServerPlayer serverPlayer, final String message, final ChatFormatting color) {
     Component component = Component.literal(message).withStyle(color);
-    player.sendSystemMessage(component);
+    serverPlayer.sendSystemMessage(component);
   }
 
   public static boolean safeTeleportToDimension(
@@ -185,6 +190,29 @@ public class TeleportManager {
     executePlayerTeleport(serverPlayer, targetLevel, teleportPos);
     handlePostTeleportActions(targetLevel, dimensionKey);
     handleGameTypeChange(serverPlayer, targetLevel);
+    return true;
+  }
+
+  public static boolean teleportPlayer(
+      final ServerPlayer serverPlayer,
+      final ResourceKey<Level> targetDimension,
+      final BlockPos targetPosition) {
+
+    if (serverPlayer == null || targetDimension == null || targetPosition == null) {
+      return false;
+    }
+
+    ServerLevel targetLevel = serverPlayer.server.getLevel(targetDimension);
+    if (targetLevel == null) {
+      log.warn("Target dimension {} does not exist", targetDimension.location());
+      return false;
+    }
+
+    recordCurrentLocation(serverPlayer);
+    executePlayerTeleport(serverPlayer, targetLevel, targetPosition);
+    handlePostTeleportActions(targetLevel, targetDimension);
+    handleGameTypeChange(serverPlayer, targetLevel);
+
     return true;
   }
 
@@ -266,30 +294,32 @@ public class TeleportManager {
     return new BlockPos(8, 65, 8);
   }
 
-  private static boolean isSafeLocation(final ServerLevel level, final BlockPos position) {
-    BlockState groundState = level.getBlockState(position.below());
+  private static boolean isSafeLocation(final ServerLevel serverLevel, final BlockPos position) {
+    BlockState groundState = serverLevel.getBlockState(position.below());
     if (groundState.isAir()) {
       return false;
     }
 
-    BlockState spawnState = level.getBlockState(position);
-    BlockState aboveState = level.getBlockState(position.above());
+    BlockState spawnState = serverLevel.getBlockState(position);
+    BlockState aboveState = serverLevel.getBlockState(position.above());
 
     return spawnState.isAir() && aboveState.isAir();
   }
 
-  private static BlockPos findSafeLocationNear(final ServerLevel level, final BlockPos center) {
-    if (isSafeLocation(level, center)) {
+  private static BlockPos findSafeLocationNear(
+      final ServerLevel serverLevel, final BlockPos center) {
+    if (isSafeLocation(serverLevel, center)) {
       return center;
     }
 
-    BlockPos safePosition = searchForSafeLocation(level, center);
-    return safePosition != null ? safePosition : createSafePlatform(level, center);
+    BlockPos safePosition = searchForSafeLocation(serverLevel, center);
+    return safePosition != null ? safePosition : createSafePlatform(serverLevel, center);
   }
 
-  private static BlockPos searchForSafeLocation(final ServerLevel level, final BlockPos center) {
+  private static BlockPos searchForSafeLocation(
+      final ServerLevel serverLevel, final BlockPos center) {
     for (int radius = 1; radius <= 16; radius++) {
-      BlockPos foundPosition = searchAtRadius(level, center, radius);
+      BlockPos foundPosition = searchAtRadius(serverLevel, center, radius);
       if (foundPosition != null) {
         return foundPosition;
       }
@@ -298,7 +328,7 @@ public class TeleportManager {
   }
 
   private static BlockPos searchAtRadius(
-      final ServerLevel level, final BlockPos center, final int radius) {
+      final ServerLevel serverLevel, final BlockPos center, final int radius) {
     for (int x = -radius; x <= radius; x++) {
       for (int z = -radius; z <= radius; z++) {
         if (Math.abs(x) != radius && Math.abs(z) != radius) {
@@ -306,7 +336,7 @@ public class TeleportManager {
         }
 
         BlockPos checkPosition = center.offset(x, 0, z);
-        BlockPos safePosition = findSafeYLevel(level, checkPosition);
+        BlockPos safePosition = findSafeYLevel(serverLevel, checkPosition);
         if (safePosition != null) {
           return safePosition;
         }
@@ -315,47 +345,50 @@ public class TeleportManager {
     return null;
   }
 
-  private static BlockPos findSafeYLevel(final ServerLevel level, final BlockPos basePosition) {
+  private static BlockPos findSafeYLevel(
+      final ServerLevel serverLevel, final BlockPos basePosition) {
     for (int yOffset = -5; yOffset <= 10; yOffset++) {
       BlockPos testPosition = basePosition.offset(0, yOffset, 0);
-      if (isValidYLevel(level, testPosition) && isSafeLocation(level, testPosition)) {
+      if (isValidYLevel(serverLevel, testPosition) && isSafeLocation(serverLevel, testPosition)) {
         return testPosition;
       }
     }
     return null;
   }
 
-  private static boolean isValidYLevel(final ServerLevel level, final BlockPos position) {
-    return position.getY() >= level.getMinBuildHeight()
-        && position.getY() <= level.getMaxBuildHeight() - 2;
+  private static boolean isValidYLevel(final ServerLevel serverLevel, final BlockPos blockPos) {
+    return blockPos.getY() >= serverLevel.getMinBuildHeight()
+        && blockPos.getY() <= serverLevel.getMaxBuildHeight() - 2;
   }
 
-  private static BlockPos createSafePlatform(final ServerLevel level, final BlockPos center) {
+  private static BlockPos createSafePlatform(final ServerLevel serverLevel, final BlockPos center) {
     BlockPos safePosition =
-        new BlockPos(center.getX(), Math.max(64, level.getMinBuildHeight() + 10), center.getZ());
+        new BlockPos(
+            center.getX(), Math.max(64, serverLevel.getMinBuildHeight() + 10), center.getZ());
 
-    placePlatformBlocks(level, safePosition);
-    clearSpawnArea(level, safePosition);
+    placePlatformBlocks(serverLevel, safePosition);
+    clearSpawnArea(serverLevel, safePosition);
 
     return safePosition;
   }
 
-  private static void placePlatformBlocks(final ServerLevel level, final BlockPos spawnPosition) {
+  private static void placePlatformBlocks(
+      final ServerLevel serverLevel, final BlockPos spawnPosition) {
     BlockPos platform = spawnPosition.below();
     BlockState stoneState = Blocks.STONE.defaultBlockState();
 
-    level.setBlock(platform, stoneState, 3);
-    level.setBlock(platform.north(), stoneState, 3);
-    level.setBlock(platform.south(), stoneState, 3);
-    level.setBlock(platform.east(), stoneState, 3);
-    level.setBlock(platform.west(), stoneState, 3);
+    serverLevel.setBlock(platform, stoneState, 3);
+    serverLevel.setBlock(platform.north(), stoneState, 3);
+    serverLevel.setBlock(platform.south(), stoneState, 3);
+    serverLevel.setBlock(platform.east(), stoneState, 3);
+    serverLevel.setBlock(platform.west(), stoneState, 3);
   }
 
-  private static void clearSpawnArea(final ServerLevel level, final BlockPos spawnPosition) {
+  private static void clearSpawnArea(final ServerLevel serverLevel, final BlockPos spawnPosition) {
     BlockState airState = Blocks.AIR.defaultBlockState();
 
-    level.setBlock(spawnPosition, airState, 3);
-    level.setBlock(spawnPosition.above(), airState, 3);
+    serverLevel.setBlock(spawnPosition, airState, 3);
+    serverLevel.setBlock(spawnPosition.above(), airState, 3);
   }
 
   private static void recordCurrentLocation(final ServerPlayer serverPlayer) {
@@ -376,33 +409,6 @@ public class TeleportManager {
         DimensionManager.getDimensionInfoData(targetLevel.dimension().location());
     if (dimensionInfo != null) {
       GameModeHistory.applyGameTypeForPlayer(serverPlayer, dimensionInfo.gameType());
-    }
-  }
-
-  private static class CountdownTeleport {
-    final String targetDimension;
-    final ResourceKey<Level> targetDimensionKey;
-    final Vec3 startPosition;
-    final ServerPlayer player;
-    final boolean enableMovementDetection;
-    int remainingSeconds;
-
-    CountdownTeleport(
-        final ServerPlayer player,
-        final ResourceKey<Level> targetDimensionKey,
-        final int countdownSeconds,
-        final boolean enableMovementDetection) {
-      this.player = player;
-      this.targetDimension = targetDimensionKey.location().toString();
-      this.targetDimensionKey = targetDimensionKey;
-      this.startPosition = player.position();
-      this.remainingSeconds = countdownSeconds;
-      this.enableMovementDetection = enableMovementDetection;
-    }
-
-    boolean hasPlayerMoved() {
-      return enableMovementDetection
-          && player.position().distanceTo(startPosition) > MOVEMENT_THRESHOLD;
     }
   }
 }

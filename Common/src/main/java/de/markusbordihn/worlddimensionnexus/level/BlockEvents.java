@@ -42,7 +42,7 @@ public class BlockEvents {
     }
 
     // Check if block is an inner portal block and deny breaking of inner portal blocks.
-    if (PortalBlockManager.isRelevantInnerPortalBlock(block, blockState)
+    if (PortalBlockManager.isRelevantInnerPortalBlock(block)
         && PortalManager.getPortal(serverLevel, blockPos) != null) {
       return false;
     }

@@ -22,6 +22,7 @@ package de.markusbordihn.worlddimensionnexus.block;
 import de.markusbordihn.worlddimensionnexus.data.color.ColoredGlassPane;
 import de.markusbordihn.worlddimensionnexus.data.color.WoolColor;
 import de.markusbordihn.worlddimensionnexus.data.portal.PortalInfoData;
+import de.markusbordihn.worlddimensionnexus.data.portal.PortalType;
 import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
 import de.markusbordihn.worlddimensionnexus.portal.PortalManager;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
@@ -41,7 +42,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -49,8 +49,8 @@ import net.minecraft.world.level.block.state.BlockState;
 public class PortalBlockManager {
 
   private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Block Manager");
+  private static final String PORTAL_SUFFIX = " Portal";
 
-  private static final Block CORNER_BLOCK_MATERIAL = Blocks.DIAMOND_BLOCK;
   private static final int PORTAL_INNER_WIDTH = 2;
   private static final int PORTAL_INNER_HEIGHT = 3;
 
@@ -61,7 +61,7 @@ public class PortalBlockManager {
       final Block block,
       final BlockState blockState) {
     // Ignore non-corner blocks or wool blocks without color.
-    boolean isCorner = block == CORNER_BLOCK_MATERIAL;
+    boolean isCorner = isCornerBlock(block);
     Optional<DyeColor> woolColorOpt = WoolColor.get(blockState);
     if (!isCorner && woolColorOpt.isEmpty()) {
       return;
@@ -69,8 +69,19 @@ public class PortalBlockManager {
 
     // Check for potential portals from the corner block or wool block.
     if (isCorner) {
+      PortalType portalType = PortalType.fromCornerBlock(block);
+
+      // Check if portal type is enabled in configuration
+      if (!portalType.isEnabled()) {
+        if (serverPlayer != null) {
+          serverPlayer.sendSystemMessage(
+              Component.literal(portalType.getName() + " portals are disabled on this server!"));
+        }
+        return;
+      }
+
       for (Direction.Axis axis : Direction.Axis.values()) {
-        checkPotentialPortalFromCorner(serverLevel, blockPos, axis, serverPlayer);
+        checkPotentialPortalFromCorner(serverLevel, blockPos, axis, serverPlayer, portalType);
       }
     } else {
       woolColorOpt.ifPresent(
@@ -80,10 +91,17 @@ public class PortalBlockManager {
                 for (int y = -PORTAL_INNER_HEIGHT - 1; y <= PORTAL_INNER_HEIGHT + 1; y++) {
                   for (int z = -PORTAL_INNER_WIDTH - 1; z <= PORTAL_INNER_WIDTH + 1; z++) {
                     BlockPos potentialCornerPos = blockPos.offset(x, y, z);
-                    if (serverLevel.getBlockState(potentialCornerPos).getBlock()
-                        == CORNER_BLOCK_MATERIAL) {
+                    Block cornerBlock = serverLevel.getBlockState(potentialCornerPos).getBlock();
+                    if (isCornerBlock(cornerBlock)) {
+                      PortalType portalType = PortalType.fromCornerBlock(cornerBlock);
+
+                      // Check if portal type is enabled in configuration
+                      if (!portalType.isEnabled()) {
+                        continue;
+                      }
+
                       checkPotentialPortalFromCorner(
-                          serverLevel, potentialCornerPos, axis, serverPlayer);
+                          serverLevel, potentialCornerPos, axis, serverPlayer, portalType);
                     }
                   }
                 }
@@ -93,20 +111,31 @@ public class PortalBlockManager {
     }
   }
 
-  public static boolean isRelevantPortalBlock(final Block block, final BlockState blockState) {
-    return isRelevantPortalFrameBlock(block, blockState)
-        || isRelevantInnerPortalBlock(block, blockState);
-  }
-
   public static boolean isRelevantPortalFrameBlock(final Block block, final BlockState blockState) {
-    return block == CORNER_BLOCK_MATERIAL || WoolColor.get(blockState).isPresent();
+    return isCornerBlock(block) || WoolColor.get(blockState).isPresent();
   }
 
-  public static boolean isRelevantInnerPortalBlock(final Block block, final BlockState blockState) {
+  public static boolean isRelevantInnerPortalBlock(final Block block) {
     return block instanceof IronBarsBlock;
   }
 
-  public static void createPortal(
+  private static boolean isCornerBlock(final Block block) {
+    return PortalType.PLAYER.getCornerBlock() == block
+        || PortalType.WORLD.getCornerBlock() == block
+        || PortalType.UNBOUND.getCornerBlock() == block
+        || PortalType.EVENT.getCornerBlock() == block;
+  }
+
+  private static boolean canCreatePortal(final PortalInfoData portalInfo) {
+    PortalType portalType = portalInfo.portalType();
+    if (portalType == PortalType.EVENT || !portalType.hasPortalLimit()) {
+      return true;
+    }
+
+    return PortalManager.getLinkedPortals(portalInfo).size() < portalType.getMaxPortalsPerLink();
+  }
+
+  public static boolean createPortal(
       final ServerLevel serverLevel,
       final ServerPlayer serverPlayer,
       final PortalInfoData portalInfo,
@@ -117,16 +146,88 @@ public class PortalBlockManager {
         || portalAxis == null
         || currentHorizontal == null) {
       log.error("Unable to create portal, missing parameter!");
+      return false;
+    }
+
+    if (!canCreatePortal(portalInfo)) {
+      if (serverPlayer != null) {
+        serverPlayer.sendSystemMessage(
+            Component.literal(
+                "Portal limit reached for "
+                    + portalInfo.portalType().getName()
+                    + " portals with this configuration!"));
+      }
+      return false;
+    }
+
+    // Create the portal blocks.
+    createInnerPortalBlocks(serverLevel, serverPlayer, portalInfo, portalAxis, currentHorizontal);
+    createFrameBlocks(serverLevel, serverPlayer, portalInfo);
+    createCornerBlocks(serverLevel, serverPlayer, portalInfo);
+
+    // Play portal creation sound and send message to the player.
+    if (serverPlayer != null) {
+      serverLevel.playSound(
+          null, portalInfo.origin(), SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0F, 1.0F);
+      serverPlayer.sendSystemMessage(
+          Component.literal(
+              portalInfo.portalType().getName()
+                  + PORTAL_SUFFIX
+                  + " ("
+                  + portalInfo.color().getName()
+                  + ") created!"));
+    }
+
+    return PortalManager.addPortal(portalInfo);
+  }
+
+  private static void createInnerPortalBlocks(
+      final ServerLevel serverLevel,
+      final ServerPlayer serverPlayer,
+      final PortalInfoData portalInfo,
+      final Direction.Axis portalAxis,
+      final Direction currentHorizontal) {
+    Block glassBlock = ColoredGlassPane.get(portalInfo.color());
+    BlockState glassState = configureGlassState(glassBlock, portalAxis, currentHorizontal);
+
+    for (BlockPos pos : portalInfo.innerBlocks()) {
+      serverLevel.setBlock(pos, glassState, 3);
+      NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
+    }
+  }
+
+  private static void createFrameBlocks(
+      final ServerLevel serverLevel,
+      final ServerPlayer serverPlayer,
+      final PortalInfoData portalInfo) {
+    Optional<Block> woolBlockOpt = WoolColor.getBlock(portalInfo.color());
+    if (woolBlockOpt.isEmpty()) {
+      log.error("Could not find wool block for color: " + portalInfo.color());
       return;
     }
 
-    // Play portal spawn sound at the origin position.
-    serverLevel.playSound(
-        null, portalInfo.origin(), SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 1.0F, 1.0F);
+    Block woolBlock = woolBlockOpt.get();
+    BlockState woolState = woolBlock.defaultBlockState();
+    for (BlockPos pos : portalInfo.frameBlocks()) {
+      serverLevel.setBlock(pos, woolState, 3);
+      NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, woolState);
+    }
+  }
 
-    // Glass pane extending Iron Bars Blocks, for this reason we are checking for them
-    // instead of stained-glass panes or glass panes.
-    Block glassBlock = ColoredGlassPane.get(portalInfo.color());
+  private static void createCornerBlocks(
+      final ServerLevel serverLevel,
+      final ServerPlayer serverPlayer,
+      final PortalInfoData portalInfo) {
+    Block cornerBlock = portalInfo.edgeBlockType();
+    BlockState cornerState = cornerBlock.defaultBlockState();
+    for (BlockPos pos : portalInfo.cornerBlocks()) {
+      serverLevel.setBlock(pos, cornerState, 3);
+      NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, cornerState);
+    }
+  }
+
+  private static BlockState configureGlassState(
+      final Block glassBlock, final Direction.Axis portalAxis, final Direction currentHorizontal) {
     BlockState glassState = glassBlock.defaultBlockState();
     if (glassBlock instanceof IronBarsBlock ironBarsBlock) {
       if (portalAxis == Direction.Axis.Y) {
@@ -138,7 +239,8 @@ public class PortalBlockManager {
                 .setValue(CrossCollisionBlock.EAST, true)
                 .setValue(CrossCollisionBlock.WEST, true);
       } else {
-        Direction.Axis connectAxis = currentHorizontal.getAxis();
+        Direction.Axis connectAxis =
+            portalAxis == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z;
         glassState =
             ironBarsBlock
                 .defaultBlockState()
@@ -148,21 +250,7 @@ public class PortalBlockManager {
                 .setValue(CrossCollisionBlock.WEST, connectAxis == Direction.Axis.X);
       }
     }
-
-    // Set the inner area blocks to glass panes and send block update packets.
-    for (BlockPos pos : portalInfo.innerBlocks()) {
-      serverLevel.setBlock(pos, glassState, 3);
-      NetworkHandler.sendBlockUpdatePacket(serverPlayer, pos, glassState);
-    }
-
-    // Send a message to the player who created the portal.
-    if (serverPlayer != null) {
-      serverPlayer.sendSystemMessage(
-          Component.literal("Portal (" + portalInfo.color().getName() + ") created!"));
-    }
-
-    // Register the portal in the PortalManager.
-    PortalManager.addPortal(portalInfo);
+    return glassState;
   }
 
   public static void destroyPortal(
@@ -193,11 +281,56 @@ public class PortalBlockManager {
     PortalManager.removePortal(portalInfo);
   }
 
+  public static void destroyPortalBlocks(
+      final ServerLevel level, final ServerPlayer player, final PortalInfoData portalInfo) {
+    if (level == null || portalInfo == null) {
+      return;
+    }
+
+    // Play portal destruction sound at the origin position.
+    level.playSound(
+        null, portalInfo.origin(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 0.7F, 1.2F);
+    level.playSound(
+        null, portalInfo.origin(), SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 0.5F, 1.25F);
+
+    // Remove all portal blocks (inner, frame, and corner blocks)
+    for (BlockPos innerBlock : portalInfo.innerBlocks()) {
+      level.removeBlock(innerBlock, true);
+      if (player != null) {
+        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, innerBlock);
+      }
+    }
+
+    for (BlockPos frameBlock : portalInfo.frameBlocks()) {
+      level.removeBlock(frameBlock, true);
+      if (player != null) {
+        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, frameBlock);
+      }
+    }
+
+    for (BlockPos cornerBlock : portalInfo.cornerBlocks()) {
+      level.removeBlock(cornerBlock, true);
+      if (player != null) {
+        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, cornerBlock);
+      }
+    }
+
+    // Send a message to the player who destroyed the portal.
+    if (player != null) {
+      player.sendSystemMessage(Component.literal("Portal blocks destroyed!"));
+    }
+
+    PortalManager.removePortal(portalInfo);
+  }
+
   private static void checkPotentialPortalFromCorner(
       final ServerLevel serverLevel,
       final BlockPos blockPos,
       final Direction.Axis portalAxis,
-      final ServerPlayer serverPlayer) {
+      final ServerPlayer serverPlayer,
+      final PortalType portalType) {
+    Block expectedCornerBlock = portalType.getCornerBlock();
+
     Direction verticalDirection;
     Direction horizontalDirection;
     int verticalFrameLength;
@@ -240,12 +373,12 @@ public class PortalBlockManager {
         BlockPos thirdCorner = blockPos.relative(currentHorizontal, horizontalFrameLength + 1);
         BlockPos fourthCorner = secondCorner.relative(currentHorizontal, horizontalFrameLength + 1);
 
-        // Check if the corners are valid corner blocks.
+        // Check if the corners are valid corner blocks of the expected type.
         boolean isValidFrame =
-            serverLevel.getBlockState(blockPos).getBlock() == CORNER_BLOCK_MATERIAL
-                && serverLevel.getBlockState(secondCorner).getBlock() == CORNER_BLOCK_MATERIAL
-                && serverLevel.getBlockState(thirdCorner).getBlock() == CORNER_BLOCK_MATERIAL
-                && serverLevel.getBlockState(fourthCorner).getBlock() == CORNER_BLOCK_MATERIAL;
+            serverLevel.getBlockState(blockPos).getBlock() == expectedCornerBlock
+                && serverLevel.getBlockState(secondCorner).getBlock() == expectedCornerBlock
+                && serverLevel.getBlockState(thirdCorner).getBlock() == expectedCornerBlock
+                && serverLevel.getBlockState(fourthCorner).getBlock() == expectedCornerBlock;
         if (!isValidFrame) {
           continue;
         }
@@ -284,6 +417,14 @@ public class PortalBlockManager {
           continue;
         }
 
+        // Check player permissions ONLY when a complete portal is found
+        if (!canPlayerCreatePortalType(portalType, serverPlayer)) {
+          return;
+        }
+
+        // Generate portal name based on type and creator
+        String portalName = generatePortalName(portalType, serverPlayer, optionalFrameColor.get());
+
         // Create portal information to create the portal.
         PortalInfoData portalInfo =
             new PortalInfoData(
@@ -300,13 +441,31 @@ public class PortalBlockManager {
                 Set.of(blockPos, secondCorner, thirdCorner, fourthCorner),
                 serverPlayer != null ? serverPlayer.getUUID() : UUID.randomUUID(),
                 optionalFrameColor.get(),
-                serverLevel.getBlockState(blockPos).getBlock());
+                expectedCornerBlock,
+                portalType,
+                portalName);
 
         // Create the portal with the portal information.
         createPortal(serverLevel, serverPlayer, portalInfo, portalAxis, currentHorizontal);
         return;
       }
     }
+  }
+
+  private static String generatePortalName(
+      final PortalType portalType, final ServerPlayer serverPlayer, final DyeColor color) {
+    if (serverPlayer == null) {
+      return portalType.getName() + " Portal" + " (" + color.getName() + ")";
+    }
+
+    String colorName = color.getName();
+    return switch (portalType) {
+      case PLAYER -> serverPlayer.getName().getString() + "'s " + colorName + " Portal";
+      case WORLD ->
+          serverPlayer.level().dimension().location().getPath() + " " + colorName + " Portal";
+      case UNBOUND -> "Unbound " + colorName + " Portal";
+      case EVENT -> "Event " + colorName + " Portal";
+    };
   }
 
   private static Optional<DyeColor> checkFrameAndGetColor(
@@ -421,5 +580,27 @@ public class PortalBlockManager {
     }
 
     return frameBlocks;
+  }
+
+  private static boolean canPlayerCreatePortalType(
+      final PortalType portalType, final ServerPlayer serverPlayer) {
+    // Allow creation if no player (e.g., commands)
+    if (serverPlayer == null) {
+      return true;
+    }
+
+    // If portal type allows player creation, any player can create it
+    if (portalType.isPlayerCreatable()) {
+      return true;
+    }
+
+    // Check if player has moderator permissions (level 2 or higher)
+    if (!serverPlayer.hasPermissions(2)) {
+      serverPlayer.sendSystemMessage(
+          Component.literal("Only moderators can create " + portalType.getName() + " portals!"));
+      return false;
+    }
+
+    return true;
   }
 }

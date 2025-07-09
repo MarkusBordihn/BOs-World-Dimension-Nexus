@@ -46,7 +46,9 @@ public record PortalInfoData(
     UUID creator,
     DyeColor color,
     Block edgeBlockType,
-    long lastUsed) {
+    long lastUsed,
+    PortalType portalType,
+    String name) {
 
   public static final Codec<BlockPos> BLOCK_POS_CODEC =
       Codec.INT_STREAM.comapFlatMap(
@@ -89,7 +91,11 @@ public record PortalInfoData(
                           .forGetter(PortalInfoData::edgeBlockType),
                       Codec.LONG
                           .optionalFieldOf("lastUsed", 0L)
-                          .forGetter(PortalInfoData::lastUsed))
+                          .forGetter(PortalInfoData::lastUsed),
+                      PortalType.CODEC
+                          .optionalFieldOf("portalType", PortalType.PLAYER)
+                          .forGetter(PortalInfoData::portalType),
+                      Codec.STRING.optionalFieldOf("name", "").forGetter(PortalInfoData::name))
                   .apply(instance, PortalInfoData::new));
 
   public PortalInfoData(
@@ -100,7 +106,9 @@ public record PortalInfoData(
       final Set<BlockPos> cornerBlocks,
       final UUID creator,
       final DyeColor color,
-      final Block edgeBlockType) {
+      final Block edgeBlockType,
+      final PortalType portalType,
+      final String name) {
     this(
         UUID.randomUUID(),
         dimension,
@@ -111,7 +119,32 @@ public record PortalInfoData(
         creator,
         color,
         edgeBlockType,
-        System.currentTimeMillis());
+        System.currentTimeMillis(),
+        portalType,
+        name);
+  }
+
+  // Legacy constructor for backward compatibility
+  public PortalInfoData(
+      final ResourceKey<Level> dimension,
+      final BlockPos origin,
+      final Set<BlockPos> frameBlocks,
+      final Set<BlockPos> innerBlocks,
+      final Set<BlockPos> cornerBlocks,
+      final UUID creator,
+      final DyeColor color,
+      final Block edgeBlockType) {
+    this(
+        dimension,
+        origin,
+        frameBlocks,
+        innerBlocks,
+        cornerBlocks,
+        creator,
+        color,
+        edgeBlockType,
+        PortalType.fromCornerBlock(edgeBlockType),
+        "");
   }
 
   public PortalInfoData withUpdatedLastUsed() {
@@ -125,7 +158,9 @@ public record PortalInfoData(
         this.creator,
         this.color,
         this.edgeBlockType,
-        System.currentTimeMillis());
+        System.currentTimeMillis(),
+        this.portalType,
+        this.name);
   }
 
   public boolean contains(final BlockPos pos) {
@@ -135,7 +170,36 @@ public record PortalInfoData(
   public boolean isLinkedTo(final PortalInfoData other) {
     return !this.equals(other)
         && this.color == other.color
-        && this.edgeBlockType == other.edgeBlockType;
+        && this.edgeBlockType == other.edgeBlockType
+        && this.portalType == other.portalType
+        && canLinkToPortalType(other);
+  }
+
+  private boolean canLinkToPortalType(final PortalInfoData other) {
+    // Event portals cannot link to anything
+    if (this.portalType == PortalType.EVENT || other.portalType == PortalType.EVENT) {
+      return false;
+    }
+
+    // Player portals can only link to portals from the same creator
+    if (this.portalType == PortalType.PLAYER || other.portalType == PortalType.PLAYER) {
+      return this.creator.equals(other.creator);
+    }
+
+    // World portals can only link within the same dimension
+    if (this.portalType == PortalType.WORLD || other.portalType == PortalType.WORLD) {
+      return this.dimension.equals(other.dimension);
+    }
+
+    // Unbound portals can link to any other unbound portal
+    return this.portalType == PortalType.UNBOUND && other.portalType == PortalType.UNBOUND;
+  }
+
+  public String getDisplayName() {
+    if (name != null && !name.trim().isEmpty()) {
+      return name;
+    }
+    return portalType.getName() + " Portal (" + color.getName() + ")";
   }
 
   public BlockPos getTeleportPosition() {
@@ -181,6 +245,11 @@ public record PortalInfoData(
         + color
         + ", edgeBlockType="
         + edgeBlockType
+        + ", portalType="
+        + portalType
+        + ", name='"
+        + name
+        + "'"
         + ", lastUsed="
         + lastUsed
         + '}';

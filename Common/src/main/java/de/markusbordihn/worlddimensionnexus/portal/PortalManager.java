@@ -55,45 +55,46 @@ public class PortalManager {
     log.info("Synchronizing {} portals ...", portalList.size());
     clear();
 
-    // Add portals without updating persistent storage
     for (PortalInfoData portalInfo : portalList) {
       addPortal(portalInfo, false);
     }
   }
 
-  public static void addPortal(final PortalInfoData portalInfo) {
-    addPortal(portalInfo, true);
+  public static boolean addPortal(final PortalInfoData portalInfo) {
+    return addPortal(portalInfo, true);
   }
 
-  public static void addPortal(final PortalInfoData portalInfo, final boolean updateStorage) {
+  private static List<BlockPos> getAllPortalBlocks(final PortalInfoData portalInfo) {
+    List<BlockPos> allBlocks = new ArrayList<>();
+    allBlocks.addAll(portalInfo.frameBlocks());
+    allBlocks.addAll(portalInfo.cornerBlocks());
+    return allBlocks;
+  }
+
+  public static boolean addPortal(final PortalInfoData portalInfo, final boolean updateStorage) {
     if (portalInfo == null) {
-      return;
+      return false;
     }
 
     log.info("Adding portal: {}", portalInfo);
     portals.add(portalInfo);
     portalsPerDimension
-        .computeIfAbsent(portalInfo.dimension(), k -> new java.util.ArrayList<>())
+        .computeIfAbsent(portalInfo.dimension(), k -> new ArrayList<>())
         .add(portalInfo);
 
-    // Add to chunk index for fast access
     Map<Long, List<PortalInfoData>> chunkIndex =
         portalsPerChunk.computeIfAbsent(portalInfo.dimension(), k -> new ConcurrentHashMap<>());
-    List<BlockPos> allBlocks = new ArrayList<>();
-    allBlocks.addAll(portalInfo.frameBlocks());
-    allBlocks.addAll(portalInfo.cornerBlocks());
-    for (BlockPos blockPos : allBlocks) {
+
+    for (BlockPos blockPos : getAllPortalBlocks(portalInfo)) {
       chunkIndex.computeIfAbsent(getChunkKey(blockPos), k -> new ArrayList<>()).add(portalInfo);
     }
 
-    // Add portal to the persistent storage.
     if (updateStorage) {
       PortalDataStorage.get().addPortal(portalInfo);
-
-      // Automatically link the portal if it has a target.
       PortalTargetManager.autoLinkPortal(
           portalInfo, getPortals(portalInfo.dimension()), getPortals());
     }
+    return true;
   }
 
   public static void removePortal(final PortalInfoData portalInfo) {
@@ -103,30 +104,36 @@ public class PortalManager {
 
     log.info("Removing portal: {}", portalInfo);
 
-    // Find any portals linked to this one and remove their targets
-    UUID portalUUID = portalInfo.uuid();
-    for (PortalInfoData otherPortal : portals) {
-      // Skip the portal being removed
-      if (otherPortal.equals(portalInfo)) {
-        continue;
-      }
+    cleanupPortalLinks(portalInfo);
 
-      // Check if this other portal links to the portal being removed
-      PortalTargetData targetData = PortalTargetManager.getTarget(otherPortal);
-      if (targetData != null) {
-        // If this portal links to the one being removed, remove the link
-        if (isTargetingPortal(targetData, portalInfo)) {
-          log.info(
-              "Removing link from portal {} to the removed portal {}",
-              otherPortal.uuid(),
-              portalUUID);
-          PortalTargetManager.removeTarget(otherPortal);
-        }
-      }
-    }
-
-    // Remove portal from the global portal set and dimension-specific list.
     portals.remove(portalInfo);
+    removeDimensionPortal(portalInfo);
+    removeChunkPortal(portalInfo);
+
+    PortalDataStorage.get().removePortal(portalInfo);
+
+    PortalTargetManager.removeTarget(portalInfo);
+  }
+
+  private static void cleanupPortalLinks(final PortalInfoData portalToRemove) {
+    UUID portalUUID = portalToRemove.uuid();
+
+    portals.parallelStream()
+        .filter(otherPortal -> !otherPortal.equals(portalToRemove))
+        .forEach(
+            otherPortal -> {
+              PortalTargetData targetData = PortalTargetManager.getTarget(otherPortal);
+              if (isTargetingPortal(targetData, portalToRemove)) {
+                log.info(
+                    "Removing link from portal {} to the removed portal {}",
+                    otherPortal.uuid(),
+                    portalUUID);
+                PortalTargetManager.removeTarget(otherPortal);
+              }
+            });
+  }
+
+  private static void removeDimensionPortal(final PortalInfoData portalInfo) {
     List<PortalInfoData> dimensionPortals = portalsPerDimension.get(portalInfo.dimension());
     if (dimensionPortals != null) {
       dimensionPortals.remove(portalInfo);
@@ -134,15 +141,12 @@ public class PortalManager {
         portalsPerDimension.remove(portalInfo.dimension());
       }
     }
+  }
 
-    // Remove portal from chunk index.
+  private static void removeChunkPortal(final PortalInfoData portalInfo) {
     Map<Long, List<PortalInfoData>> chunkIndex = portalsPerChunk.get(portalInfo.dimension());
     if (chunkIndex != null) {
-      List<BlockPos> allBlocks = new ArrayList<>();
-      allBlocks.addAll(portalInfo.frameBlocks());
-      allBlocks.addAll(portalInfo.cornerBlocks());
-
-      for (BlockPos blockPos : allBlocks) {
+      for (BlockPos blockPos : getAllPortalBlocks(portalInfo)) {
         long chunkKey = getChunkKey(blockPos);
         List<PortalInfoData> chunkPortals = chunkIndex.get(chunkKey);
         if (chunkPortals != null) {
@@ -157,12 +161,6 @@ public class PortalManager {
         portalsPerChunk.remove(portalInfo.dimension());
       }
     }
-
-    // Remove portal from the persistent storage.
-    PortalDataStorage.get().removePortal(portalInfo);
-
-    // Remove portal from the target manager.
-    PortalTargetManager.removeTarget(portalInfo);
   }
 
   public static Set<PortalInfoData> getPortals() {
@@ -181,27 +179,33 @@ public class PortalManager {
       return null;
     }
 
-    // Check if the dimension has any portals registered.
     Map<Long, List<PortalInfoData>> chunkMap = portalsPerChunk.get(level.dimension());
     if (chunkMap == null) {
       return null;
     }
 
-    // Check if the block position is within a chunk that has registered portals.
     List<PortalInfoData> portalsInChunk = chunkMap.get(new ChunkPos(blockPos).toLong());
     if (portalsInChunk == null) {
       return null;
     }
 
-    // Check if the block position is part of any portal frame or corner blocks.
-    for (PortalInfoData portal : portalsInChunk) {
-      if (portal.frameBlocks().contains(blockPos)
-          || portal.cornerBlocks().contains(blockPos)
-          || portal.innerBlocks().contains(blockPos)) {
-        return portal;
-      }
+    return portalsInChunk.stream()
+        .filter(portal -> isBlockPartOfPortal(portal, blockPos))
+        .findFirst()
+        .orElse(null);
+  }
+
+  public static PortalInfoData getPortal(final UUID uuid) {
+    if (uuid == null) {
+      return null;
     }
-    return null;
+    return portals.stream().filter(portal -> portal.uuid().equals(uuid)).findFirst().orElse(null);
+  }
+
+  private static boolean isBlockPartOfPortal(final PortalInfoData portal, final BlockPos blockPos) {
+    return portal.frameBlocks().contains(blockPos)
+        || portal.cornerBlocks().contains(blockPos)
+        || portal.innerBlocks().contains(blockPos);
   }
 
   public static void clear() {
@@ -218,33 +222,29 @@ public class PortalManager {
     return new ChunkPos(blockPos).toLong();
   }
 
+  public static List<PortalInfoData> getLinkedPortals(final PortalInfoData portalInfo) {
+    if (portalInfo == null) {
+      return new ArrayList<>();
+    }
+
+    return portals.stream()
+        .filter(other -> portalInfo.isLinkedTo(other))
+        .collect(java.util.stream.Collectors.toList());
+  }
+
   private static boolean isTargetingPortal(
       final PortalTargetData targetData, final PortalInfoData portal) {
     if (targetData == null || portal == null) {
       return false;
     }
 
-    // Check if the target's dimension matches the portal's dimension
     if (!targetData.dimension().equals(portal.dimension())) {
       return false;
     }
 
-    // Check if the target's position is within the portal's area
     BlockPos targetPos = targetData.position();
 
-    // Check frame blocks
-    for (BlockPos frameBlock : portal.frameBlocks()) {
-      if (frameBlock.getX() == targetPos.getX()
-          && frameBlock.getY() == targetPos.getY()
-          && frameBlock.getZ() == targetPos.getZ()) {
-        return true;
-      }
-    }
-
-    // Also check the portal's teleport position specifically
-    BlockPos portalPos = portal.getTeleportPosition();
-    return portalPos.getX() == targetPos.getX()
-        && portalPos.getY() == targetPos.getY()
-        && portalPos.getZ() == targetPos.getZ();
+    return portal.frameBlocks().contains(targetPos)
+        || targetPos.equals(portal.getTeleportPosition());
   }
 }

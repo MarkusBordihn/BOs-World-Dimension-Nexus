@@ -20,11 +20,12 @@
 package de.markusbordihn.worlddimensionnexus.utils;
 
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import de.markusbordihn.worlddimensionnexus.portal.PortalTargetManager;
+import de.markusbordihn.worlddimensionnexus.portal.PortalTeleportHelper;
 import de.markusbordihn.worlddimensionnexus.saveddata.AutoTeleportDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.TeleportHistoryDataStorage;
-import de.markusbordihn.worlddimensionnexus.service.TeleportService;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
@@ -43,9 +44,10 @@ public class CacheManager {
     TeleportHistoryDataStorage.clearInstance();
 
     log.info("Clearing Data Manager caches...");
-    TeleportHistory.clearAllCache();
-    TeleportService.clearAllCache();
-    DimensionManager.clearAllCache();
     AutoTeleportManager.clearAllCache();
+    DimensionManager.clearAllCache();
+    PortalTargetManager.clear();
+    PortalTeleportHelper.clearAllCache();
+    TeleportHistory.clearAllCache();
   }
 }

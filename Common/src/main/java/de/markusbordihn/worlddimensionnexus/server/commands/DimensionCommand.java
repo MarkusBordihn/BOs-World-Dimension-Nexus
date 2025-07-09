@@ -249,8 +249,7 @@ public class DimensionCommand extends Command {
   }
 
   public static int removeDimension(final CommandSourceStack source, final String name) {
-    boolean removed = DimensionManager.removeDimension(name);
-    if (removed) {
+    if (DimensionManager.removeDimension(name)) {
       return sendSuccessMessage(
           source, "Dimension '" + name + "' was removed from server (data remains).");
     }
