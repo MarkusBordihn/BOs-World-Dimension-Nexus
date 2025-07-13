@@ -26,13 +26,15 @@ public enum ChunkGeneratorType {
   FLAT("flat", "minecraft:overworld"),
   NOISE("noise", "minecraft:overworld"),
   DEBUG("debug", "minecraft:overworld"),
-  VOID("void", "minecraft:the_end"),
+  VOID("void", "world_dimension_nexus:void_dimension_type"),
   LOBBY("lobby", "world_dimension_nexus:lobby_dimension_type"),
-  SKYBLOCK("skyblock", "minecraft:overworld"),
-  CAVE("cave", "minecraft:overworld_caves"),
-  FLOATING_ISLANDS("floating_islands", "minecraft:the_end"),
+  SKYBLOCK("skyblock", "world_dimension_nexus:skyblock_dimension_type"),
+  CAVE("cave", "world_dimension_nexus:cave_dimension_type"),
+  FLOATING_ISLANDS("floating_islands", "world_dimension_nexus:floating_islands_dimension_type"),
   AMPLIFIED("amplified", "minecraft:overworld"),
-  WATER("water", "world_dimension_nexus:water_dimension_type");
+  WATER("water", "world_dimension_nexus:water_dimension_type"),
+  NETHER("nether", "minecraft:the_nether"),
+  END("end", "minecraft:the_end");
 
   public static final Codec<ChunkGeneratorType> CODEC =
       Codec.STRING.xmap(ChunkGeneratorType::fromString, ChunkGeneratorType::getName);
@@ -50,7 +52,7 @@ public enum ChunkGeneratorType {
         return type;
       }
     }
-    return CUSTOM; // Fallback
+    return CUSTOM;
   }
 
   public String getName() {

@@ -50,8 +50,9 @@ public class Config {
 
   public static void registerCommonConfig() {
     log.info("Registering common configuration ...");
-    PortalConfig.registerConfig();
     DimensionConfig.registerConfig();
+    FloatingIslandsChunkGeneratorConfig.registerConfig();
+    PortalConfig.registerConfig();
     TeleportConfig.registerConfig();
   }
 
@@ -180,6 +181,19 @@ public class Config {
       }
     }
     properties.setProperty(key, Short.toString(defaultValue));
+    return defaultValue;
+  }
+
+  protected static long parseConfigValue(
+      final Properties properties, final String key, final long defaultValue) {
+    if (properties.containsKey(key)) {
+      try {
+        return Long.parseLong(properties.getProperty(key).trim());
+      } catch (Exception e) {
+        log.error("Failed to parse Long value for key {}:", key, e);
+      }
+    }
+    properties.setProperty(key, Long.toString(defaultValue));
     return defaultValue;
   }
 

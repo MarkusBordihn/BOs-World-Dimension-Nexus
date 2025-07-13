@@ -264,6 +264,15 @@ public class TeleportManager {
       final ServerPlayer serverPlayer,
       final ServerLevel targetLevel,
       final DimensionInfoData dimensionInfo) {
+
+    // Special handling for SKYBLOCK - always use fixed spawn regardless of other conditions
+    if (dimensionInfo != null
+        && dimensionInfo.chunkGeneratorType() == ChunkGeneratorType.SKYBLOCK) {
+      BlockPos skyblockSpawn = getSkyblockSpawnLocation();
+      createSafePlatformIfNeeded(targetLevel, skyblockSpawn);
+      return skyblockSpawn;
+    }
+
     // First check if dimension has a custom spawn point set
     if (dimensionInfo != null && dimensionInfo.spawnPoint() != null) {
       BlockPos customSpawn = dimensionInfo.spawnPoint();
@@ -273,11 +282,6 @@ public class TeleportManager {
         // If custom spawn is not safe, try to find a safe location near it
         return findSafeLocationNear(targetLevel, customSpawn);
       }
-    }
-
-    if (dimensionInfo != null
-        && dimensionInfo.chunkGeneratorType() == ChunkGeneratorType.SKYBLOCK) {
-      return getSkyblockSpawnLocation();
     }
 
     // Try world spawn
@@ -291,7 +295,16 @@ public class TeleportManager {
   }
 
   private static BlockPos getSkyblockSpawnLocation() {
-    return new BlockPos(8, 65, 8);
+    return new BlockPos(8, 70, 8);
+  }
+
+  private static void createSafePlatformIfNeeded(
+      final ServerLevel serverLevel, final BlockPos spawnPosition) {
+    // Only create platform if spawn location is not safe
+    if (!isSafeLocation(serverLevel, spawnPosition)) {
+      placePlatformBlocks(serverLevel, spawnPosition);
+      clearSpawnArea(serverLevel, spawnPosition);
+    }
   }
 
   private static boolean isSafeLocation(final ServerLevel serverLevel, final BlockPos position) {

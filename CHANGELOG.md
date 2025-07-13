@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# v0.4.0
+
+- Fixed #1 by adding more specific dimension presets.
+- Fixed wrong SkyBlock spawn point.
+- Added Floating Islands Chunk Generator with configuration file.
+
 # v0.3.0
 
 - Added Portal and Event Portal commands.

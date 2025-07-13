@@ -22,7 +22,8 @@ package de.markusbordihn.worlddimensionnexus.levelgen;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfig;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenConfigLoader;
-import java.util.Collections;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
+import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.Holder;
@@ -50,6 +51,8 @@ import net.minecraft.world.level.levelgen.structure.StructureSet;
 
 public class ChunkGeneratorHelper {
 
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Chunk Generator Helper");
+
   private ChunkGeneratorHelper() {}
 
   public static ChunkGenerator getDefault(
@@ -60,14 +63,9 @@ public class ChunkGeneratorHelper {
         () ->
             switch (type) {
               case FLAT -> getFlatChunkGenerator(server);
-              case NOISE -> getNoiseChunkGenerator(server, type);
               case DEBUG -> getDebugChunkGenerator(server);
-              case VOID -> getVoidChunkGenerator(server);
-              case LOBBY -> getLobbyChunkGenerator(server);
               case SKYBLOCK -> getSkyblockChunkGenerator(server);
-              case CAVE -> getCaveChunkGenerator(server);
               case FLOATING_ISLANDS -> getFloatingIslandsChunkGenerator(server);
-              case AMPLIFIED -> getAmplifiedChunkGenerator(server);
               default -> getCustomChunkGenerator(server, type);
             });
   }
@@ -77,14 +75,26 @@ public class ChunkGeneratorHelper {
     Optional<ChunkGenerator> jsonChunkGenerator =
         JsonChunkGeneratorLoader.loadFromJson(server, type);
     if (jsonChunkGenerator.isPresent()) {
+      log.debug(
+          "Using custom chunk generator '{}' for type '{}'.",
+          jsonChunkGenerator.get().getClass().getSimpleName(),
+          type.getName());
       return jsonChunkGenerator.get();
     }
 
     Optional<WorldgenConfig> worldgenConfiguration = WorldgenConfigLoader.getConfig(type);
     if (worldgenConfiguration.isPresent()) {
+      log.debug(
+          "Using chunk generator '{}' for type '{}' with configuration '{}'.",
+          worldgenConfiguration.get().getClass().getSimpleName(),
+          type.getName(),
+          worldgenConfiguration.get());
       return createChunkGeneratorFromConfig(server, worldgenConfiguration.get());
     }
 
+    log.warn(
+        "No custom chunk generator or worldgen configuration found for type '{}', falling back to flat generator.",
+        type.getName());
     return getFlatChunkGenerator(server);
   }
 
@@ -94,12 +104,6 @@ public class ChunkGeneratorHelper {
       return getNoiseChunkGenerator(server, config.type(), config.noiseSettings().get());
     }
     return getFlatChunkGenerator(server);
-  }
-
-  public static ChunkGenerator getNoiseChunkGenerator(
-      final MinecraftServer server, final ChunkGeneratorType type) {
-    return getNoiseChunkGenerator(
-        server, type, ResourceLocation.fromNamespaceAndPath("minecraft", "overworld"));
   }
 
   public static ChunkGenerator getNoiseChunkGenerator(
@@ -122,52 +126,14 @@ public class ChunkGeneratorHelper {
     return new DebugLevelSource(biomeGetter.getOrThrow(Biomes.PLAINS));
   }
 
-  public static ChunkGenerator getVoidChunkGenerator(final MinecraftServer server) {
-    return getFlatChunkGenerator(
-        server, Collections.emptyList(), Biomes.THE_VOID, Collections.emptyList(), false);
-  }
-
-  public static ChunkGenerator getLobbyChunkGenerator(final MinecraftServer server) {
-    return getFlatChunkGenerator(
-        server,
-        List.of(
-            new FlatLayerInfo(1, Blocks.BARRIER),
-            new FlatLayerInfo(3, Blocks.STONE),
-            new FlatLayerInfo(1, Blocks.STONE_BRICKS)),
-        Biomes.THE_VOID,
-        Collections.emptyList(),
-        false);
-  }
-
   public static ChunkGenerator getSkyblockChunkGenerator(final MinecraftServer server) {
     HolderGetter<Biome> biomeGetter = server.registryAccess().lookupOrThrow(Registries.BIOME);
     return new SkyblockChunkGenerator(biomeGetter);
   }
 
-  public static ChunkGenerator getCaveChunkGenerator(final MinecraftServer server) {
-    return getFlatChunkGenerator(
-        server,
-        List.of(
-            new FlatLayerInfo(1, Blocks.BEDROCK),
-            new FlatLayerInfo(60, Blocks.STONE),
-            new FlatLayerInfo(3, Blocks.DIRT)),
-        Biomes.DEEP_DARK,
-        List.of(BuiltinStructureSets.ANCIENT_CITIES),
-        false);
-  }
-
   public static ChunkGenerator getFloatingIslandsChunkGenerator(final MinecraftServer server) {
-    return getNoiseChunkGenerator(
-        server,
-        ChunkGeneratorType.FLOATING_ISLANDS,
-        ResourceLocation.fromNamespaceAndPath("minecraft", "end"));
-  }
-
-  public static ChunkGenerator getAmplifiedChunkGenerator(final MinecraftServer server) {
-    return getNoiseChunkGenerator(
-        server,
-        ChunkGeneratorType.AMPLIFIED,
-        ResourceLocation.fromNamespaceAndPath("minecraft", "amplified"));
+    HolderGetter<Biome> biomeGetter = server.registryAccess().lookupOrThrow(Registries.BIOME);
+    return new FloatingIslandsChunkGenerator(biomeGetter);
   }
 
   public static ChunkGenerator getFlatChunkGenerator(final MinecraftServer server) {

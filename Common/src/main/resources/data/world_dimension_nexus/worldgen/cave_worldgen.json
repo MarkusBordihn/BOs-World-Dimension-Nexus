@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:flat",
+  "settings": {
+    "bedrock_roof_position": -10,
+    "bedrock_floor_position": 0,
+    "layers": [
+      {
+        "block": "minecraft:bedrock",
+        "height": 1
+      },
+      {
+        "block": "minecraft:stone",
+        "height": 60
+      },
+      {
+        "block": "minecraft:dirt",
+        "height": 3
+      }
+    ],
+    "biome": "minecraft:deep_dark",
+    "lakes": false,
+    "features": true,
+    "structure_overrides": [
+      "minecraft:ancient_city"
+    ]
+  }
+}
