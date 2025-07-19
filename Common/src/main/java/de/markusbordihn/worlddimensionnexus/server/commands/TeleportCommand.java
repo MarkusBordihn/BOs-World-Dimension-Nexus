@@ -23,7 +23,9 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.markusbordihn.worlddimensionnexus.commands.Command;
+import de.markusbordihn.worlddimensionnexus.config.TeleportConfig;
 import de.markusbordihn.worlddimensionnexus.server.commands.suggestions.DimensionSuggestion;
+import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportCooldownManager;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
@@ -60,6 +62,7 @@ public class TeleportCommand extends Command {
                                 .executes(TeleportCommand::teleportPlayerToDimension))))
         .then(
             Commands.literal("back")
+                .requires(cs -> TeleportConfig.ENABLE_BACK_TELEPORT_COMMAND)
                 .executes(TeleportCommand::teleportBack)
                 .then(
                     Commands.argument(PLAYER_ARGUMENT, EntityArgument.player())
@@ -67,6 +70,7 @@ public class TeleportCommand extends Command {
                         .executes(TeleportCommand::teleportPlayerBack)))
         .then(
             Commands.literal("overworld")
+                .requires(cs -> TeleportConfig.ENABLE_OVERWORLD_TELEPORT_COMMAND)
                 .executes(TeleportCommand::teleportToOverworld)
                 .then(
                     Commands.argument(PLAYER_ARGUMENT, EntityArgument.player())
@@ -141,6 +145,13 @@ public class TeleportCommand extends Command {
       throws CommandSyntaxException {
     ServerPlayer player = context.getSource().getPlayerOrException();
 
+    if (AutoTeleportManager.shouldRestrictTeleportCommands(player)) {
+      return sendFailureMessage(
+          context.getSource(),
+          Component.literal("Teleportation is restricted in this dimension")
+              .withStyle(ChatFormatting.RED));
+    }
+
     // Check cooldown for non-moderator players
     if (!context.getSource().hasPermission(Commands.LEVEL_MODERATORS)
         && !TeleportCooldownManager.canTeleportBack(player)) {
@@ -203,6 +214,13 @@ public class TeleportCommand extends Command {
   private static int teleportToOverworld(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
     ServerPlayer player = context.getSource().getPlayerOrException();
+
+    if (AutoTeleportManager.shouldRestrictTeleportCommands(player)) {
+      return sendFailureMessage(
+          context.getSource(),
+          Component.literal("Teleportation is restricted in this dimension")
+              .withStyle(ChatFormatting.RED));
+    }
 
     if (TeleportManager.teleportToDimensionWithoutHistory(player, Level.OVERWORLD)) {
       return sendSuccessMessage(

@@ -50,7 +50,7 @@ public class Config {
 
   public static void registerCommonConfig() {
     log.info("Registering common configuration ...");
-    DimensionConfig.registerConfig();
+    AutoTeleportConfig.registerConfig();
     FloatingIslandsChunkGeneratorConfig.registerConfig();
     PortalConfig.registerConfig();
     TeleportConfig.registerConfig();

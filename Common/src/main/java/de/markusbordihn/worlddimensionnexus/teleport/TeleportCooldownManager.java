@@ -30,7 +30,7 @@ public class TeleportCooldownManager {
       new ConcurrentHashMap<>();
 
   public static boolean canTeleportBack(final ServerPlayer player) {
-    if (!TeleportConfig.isBackTeleportCooldownEnabled()) {
+    if (TeleportConfig.BACK_TELEPORT_COOLDOWN <= 0) {
       return true;
     }
 
@@ -42,19 +42,19 @@ public class TeleportCooldownManager {
     }
 
     long currentTime = System.currentTimeMillis();
-    long cooldownTime = TeleportConfig.getBackTeleportCooldown() * 1000L;
+    long cooldownTime = TeleportConfig.BACK_TELEPORT_COOLDOWN * 1000L;
 
     return (currentTime - lastTeleport) >= cooldownTime;
   }
 
   public static void recordBackTeleport(final ServerPlayer player) {
-    if (TeleportConfig.isBackTeleportCooldownEnabled()) {
+    if (TeleportConfig.BACK_TELEPORT_COOLDOWN > 0) {
       backTeleportCooldowns.put(player.getUUID(), System.currentTimeMillis());
     }
   }
 
   public static int getRemainingCooldown(final ServerPlayer player) {
-    if (!TeleportConfig.isBackTeleportCooldownEnabled()) {
+    if (TeleportConfig.BACK_TELEPORT_COOLDOWN <= 0) {
       return 0;
     }
 
@@ -66,7 +66,7 @@ public class TeleportCooldownManager {
     }
 
     long currentTime = System.currentTimeMillis();
-    long cooldownTime = TeleportConfig.getBackTeleportCooldown() * 1000L;
+    long cooldownTime = TeleportConfig.BACK_TELEPORT_COOLDOWN * 1000L;
     long timePassed = currentTime - lastTeleport;
 
     if (timePassed >= cooldownTime) {

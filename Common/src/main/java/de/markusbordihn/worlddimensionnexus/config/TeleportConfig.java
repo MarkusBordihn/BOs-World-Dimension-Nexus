@@ -31,10 +31,20 @@ public class TeleportConfig extends Config {
 Teleport Configuration
 This file contains the configuration for teleport commands, including cooldowns and restrictions.
 
+Commands:
+- EnableBackTeleportCommand: Enables or disables the /wdn teleport back command for players
+- EnableOverworldTeleportCommand: Enables or disables the /wdn teleport overworld command for players
+
+Cooldowns:
+- BackTeleportCooldown: Cooldown in seconds for the back teleport command (0 = disabled)
+- ModeratorsBypassCooldown: Whether moderators bypass teleport cooldowns
+
 """;
 
   public static int BACK_TELEPORT_COOLDOWN = 30;
   public static boolean MODERATORS_BYPASS_COOLDOWN = true;
+  public static boolean ENABLE_BACK_TELEPORT_COMMAND = true;
+  public static boolean ENABLE_OVERWORLD_TELEPORT_COMMAND = true;
 
   public static void registerConfig() {
     registerConfigFile(CONFIG_FILE_NAME, CONFIG_FILE_HEADER);
@@ -53,18 +63,16 @@ This file contains the configuration for teleport commands, including cooldowns 
         parseConfigValue(
             properties, "Teleport:ModeratorsBypassCooldown", MODERATORS_BYPASS_COOLDOWN);
 
+    ENABLE_BACK_TELEPORT_COMMAND =
+        parseConfigValue(
+            properties, "Teleport:EnableBackTeleportCommand", ENABLE_BACK_TELEPORT_COMMAND);
+
+    ENABLE_OVERWORLD_TELEPORT_COMMAND =
+        parseConfigValue(
+            properties,
+            "Teleport:EnableOverworldTeleportCommand",
+            ENABLE_OVERWORLD_TELEPORT_COMMAND);
+
     updateConfigFileIfChanged(configFile, CONFIG_FILE_HEADER, properties, unmodifiedProperties);
-  }
-
-  public static int getBackTeleportCooldown() {
-    return BACK_TELEPORT_COOLDOWN;
-  }
-
-  public static boolean isBackTeleportCooldownEnabled() {
-    return BACK_TELEPORT_COOLDOWN > 0;
-  }
-
-  public static boolean doModeratorsBypassCooldown() {
-    return MODERATORS_BYPASS_COOLDOWN;
   }
 }

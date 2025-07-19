@@ -20,6 +20,7 @@
 package de.markusbordihn.worlddimensionnexus.teleport;
 
 import de.markusbordihn.worlddimensionnexus.Constants;
+import de.markusbordihn.worlddimensionnexus.config.AutoTeleportConfig;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportEntry;
 import de.markusbordihn.worlddimensionnexus.data.teleport.AutoTeleportTrigger;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
@@ -47,6 +48,8 @@ public class AutoTeleportManager {
   private static final Map<AutoTeleportTrigger, AutoTeleportEntry> globalRules =
       new EnumMap<>(AutoTeleportTrigger.class);
   private static final Map<UUID, String> pendingDeathTeleports = new ConcurrentHashMap<>();
+  private static final Map<UUID, Long> deathTeleportProtectionTimestamps =
+      new ConcurrentHashMap<>();
 
   private AutoTeleportManager() {}
 
@@ -174,6 +177,26 @@ public class AutoTeleportManager {
       final AutoTeleportTrigger triggerType,
       final String currentDimensionId,
       final AutoTeleportEntry teleportRule) {
+
+    // Check if player is protected from other teleports after death teleport
+    if (triggerType != AutoTeleportTrigger.ON_DEATH
+        && isPlayerProtectedFromTeleports(player, teleportRule)) {
+      log.debug(
+          "Player '{}' is protected from auto-teleport trigger '{}' due to recent death teleport",
+          player.getName().getString(),
+          triggerType);
+      return false;
+    }
+
+    // Check persistent death dimension protection (survives server restarts)
+    if (triggerType != AutoTeleportTrigger.ON_DEATH
+        && isPlayerInDeathDimensionWithProtection(player)) {
+      log.debug(
+          "Player '{}' is protected from auto-teleport trigger '{}' because they are in a death target dimension",
+          player.getName().getString(),
+          triggerType);
+      return false;
+    }
 
     if (!isTriggerConditionSatisfied(player, triggerType)) {
       log.debug(
@@ -312,6 +335,14 @@ public class AutoTeleportManager {
     log.info("Cleared all auto-teleport rules");
   }
 
+  public static void clearAllCache() {
+    log.info("Clearing auto-teleport manager cache for world switch...");
+    deathTeleportProtectionTimestamps.clear();
+    globalRules.clear();
+    pendingDeathTeleports.clear();
+    serverRestartTeleports.clear();
+  }
+
   public static void loadRules(final ServerLevel level) {
     if (level == null) {
       log.warn("Cannot load rules without server level context");
@@ -329,6 +360,16 @@ public class AutoTeleportManager {
       final ServerPlayer player, final AutoTeleportTrigger trigger) {
     UUID playerId = player.getUUID();
 
+    // Set protection timestamp when a death teleport is executed
+    if (trigger == AutoTeleportTrigger.ON_DEATH
+        && AutoTeleportConfig.PREVENT_TELEPORT_AFTER_DEATH) {
+      deathTeleportProtectionTimestamps.put(playerId, System.currentTimeMillis());
+      log.debug(
+          "Death teleport protection activated for player {} for {} seconds",
+          player.getName().getString(),
+          AutoTeleportConfig.DEATH_TELEPORT_PROTECTION_TIME_SECONDS);
+    }
+
     switch (trigger) {
       case ONCE_AFTER_SERVER_RESTART ->
           serverRestartTeleports.put(playerId, System.currentTimeMillis());
@@ -341,11 +382,99 @@ public class AutoTeleportManager {
     }
   }
 
-  public static void clearAllCache() {
-    log.info("Clearing auto-teleport manager cache for world switch...");
-    serverRestartTeleports.clear();
-    globalRules.clear();
-    pendingDeathTeleports.clear();
+  private static boolean isPlayerProtectedFromTeleports(
+      final ServerPlayer player, final AutoTeleportEntry teleportRule) {
+    if (!AutoTeleportConfig.PREVENT_TELEPORT_AFTER_DEATH) {
+      return false;
+    }
+
+    UUID playerId = player.getUUID();
+    Long protectionTimestamp = deathTeleportProtectionTimestamps.get(playerId);
+
+    if (protectionTimestamp == null) {
+      return false;
+    }
+
+    long currentTime = System.currentTimeMillis();
+    long protectionDurationMs = AutoTeleportConfig.DEATH_TELEPORT_PROTECTION_TIME_SECONDS * 1000L;
+
+    if (currentTime - protectionTimestamp > protectionDurationMs) {
+      deathTeleportProtectionTimestamps.remove(playerId);
+      log.debug("Death teleport protection expired for player {}", player.getName().getString());
+      return false;
+    }
+
+    AutoTeleportEntry deathTeleportRule = globalRules.get(AutoTeleportTrigger.ON_DEATH);
+    if (deathTeleportRule == null) {
+      return false;
+    }
+
+    String currentDimensionId = getCurrentDimensionId(player);
+    boolean isInDeathTargetDimension =
+        currentDimensionId.equals(deathTeleportRule.targetDimension());
+
+    if (!isInDeathTargetDimension) {
+      deathTeleportProtectionTimestamps.remove(playerId);
+      log.debug(
+          "Player {} left death target dimension, removing protection",
+          player.getName().getString());
+      return false;
+    }
+
+    long remainingSeconds = (protectionDurationMs - (currentTime - protectionTimestamp)) / 1000;
+    log.debug(
+        "Player {} is protected from teleport ({}s remaining)",
+        player.getName().getString(),
+        remainingSeconds);
+    return true;
+  }
+
+  private static boolean isPlayerInDeathDimensionWithProtection(final ServerPlayer player) {
+    if (!AutoTeleportConfig.PREVENT_TELEPORT_FROM_DEATH_DIMENSION) {
+      return false;
+    }
+
+    AutoTeleportEntry deathTeleportRule = globalRules.get(AutoTeleportTrigger.ON_DEATH);
+    if (deathTeleportRule == null) {
+      return false;
+    }
+
+    String currentDimensionId = getCurrentDimensionId(player);
+    boolean isInDeathTargetDimension =
+        currentDimensionId.equals(deathTeleportRule.targetDimension());
+
+    if (isInDeathTargetDimension) {
+      log.debug(
+          "Player {} is in death target dimension '{}', persistent protection active",
+          player.getName().getString(),
+          currentDimensionId);
+    }
+
+    return isInDeathTargetDimension;
+  }
+
+  public static boolean shouldRestrictTeleportCommands(final ServerPlayer player) {
+    if (!AutoTeleportConfig.RESTRICT_TELEPORT_COMMANDS_IN_DEATH_DIMENSION) {
+      return false;
+    }
+
+    AutoTeleportEntry deathTeleportRule = globalRules.get(AutoTeleportTrigger.ON_DEATH);
+    if (deathTeleportRule == null) {
+      return false;
+    }
+
+    String currentDimensionId = getCurrentDimensionId(player);
+    boolean isInDeathTargetDimension =
+        currentDimensionId.equals(deathTeleportRule.targetDimension());
+
+    if (isInDeathTargetDimension) {
+      log.debug(
+          "Teleport commands restricted for player {} in death target dimension '{}'",
+          player.getName().getString(),
+          currentDimensionId);
+    }
+
+    return isInDeathTargetDimension;
   }
 
   public static boolean setAutoTeleportPosition(

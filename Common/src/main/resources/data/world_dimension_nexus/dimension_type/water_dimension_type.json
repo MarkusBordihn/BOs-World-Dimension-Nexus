@@ -11,7 +11,10 @@
   "logical_height": 192,
   "min_y": 0,
   "monster_spawn_block_light_limit": 0,
-  "monster_spawn_light_level": 0,
+  "monster_spawn_light_level": {
+    "type": "minecraft:constant",
+    "value": 15
+  },
   "natural": true,
   "piglin_safe": false,
   "respawn_anchor_works": false,

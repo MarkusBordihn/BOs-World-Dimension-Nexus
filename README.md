@@ -35,33 +35,76 @@ the stable release.
 - ⚙️ **Fully Serverside** - Works with vanilla clients - no client mods required
 - 🏛️ **Portal System** - Physical gateways between dimensions (planned feature)
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Demo)
 
-### Installation
+This quick start guide will show you a limited set of commands to get you started with the
+World Dimension Nexus mod.
 
-📦 **Download from:**
+Please use a test world to try out the commands and features before using them in your main world.
 
-- **[CurseForge](https://www.curseforge.com/minecraft/mc-mods/world-dimension-nexus)** - Primary
-  download platform
-- **[Modrinth](https://modrinth.com/mod/world-dimension-nexus)** - Alternative download platform
+### 🌍 Dimension Setup
 
-Simply add the mod to your server's `mods` folder - no client-side installation required!
-
-### Basic Commands
+The following commands will help you create and manage dimensions:
 
 ```bash
-# Create a new dimension
-/wdn dimension create mydimension void creative
+# Import a new dimension like lobby and fishing
+/wdn dimension import lobby_dimension.wdn
+/wdn dimension import fishing_dimension.wdn
 
-# Teleport to a dimension
-/wdn teleport dimension mydimension
+# Optionally, create a new dimension with a preset
+/wdn dimension create my_skyblock skyblock
 
 # List all dimensions
 /wdn dimension list
+```
+
+### 🚀 Teleportation & Auto-Teleport Workflow
+
+Set up automated player movement between dimensions using auto-teleport rules:
+
+```bash
+# Teleport to a dimension
+/wdn teleport dimension world_dimension_nexus:my_skyblock
 
 # Set up auto-teleport rules
-/wdn autoteleport add on_death lobby
+/wdn autoteleport add always world_dimension_nexus:lobby_dimension      # 🏠 Send new players to lobby
+/wdn autoteleport add on_death world_dimension_nexus:fishing_dimension  # 🎣 Send players to fishing on death
+
+# List all auto-teleport rules
+/wdn autoteleport list
 ```
+
+After running these commands:
+
+- 🏠 Players will be sent to the lobby dimension when they join for the first time.
+- 🎣 Players will be sent to the fishing dimension when they die.
+
+💡 *Tip: You can customize triggers, target dimensions, and even coordinates!
+See* [Auto-Teleport Commands](wiki/Commands-Auto-Teleport.md) *for advanced options.*
+
+Note: The hot-creation of dimensions is limited, so you might need to restart the server
+to get the dimensions fully functional with all features and entities.
+
+### 🏛️ Portal Setup
+
+Create and manage portals between dimensions:
+
+```bash
+# Teleport to the fishing dimension (if not already in the dimension)
+/wdn teleport dimension world_dimension_nexus:lobby_dimension
+
+# Use a good location for the portal, e.g. at one of the trees
+/wdn portal create unbound green 43 49 20
+
+# Teleport to the lobby dimension
+/wdn teleport dimension world_dimension_nexus:lobby_dimension
+
+# Use a good location for the portal, e.g. in the woods
+/wdn portal create unbound green -36 9 -27
+```
+
+After running these commands, you will have two portals created in the lobby and fishing.
+You can now use the portals to teleport between the dimensions.
 
 ## 🎯 Use Cases
 
