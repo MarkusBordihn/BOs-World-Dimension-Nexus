@@ -34,13 +34,21 @@ public class SpawnEvents {
 
   private static final Logger log = LogManager.getLogger(Constants.LOG_NAME);
 
+  private SpawnEvents() {}
+
   public static boolean handleEntityJoinLevelEvent(Mob mob, ServerLevel serverLevel) {
     SpawnRules spawnRules = getSpawnRulesForDimension(serverLevel);
     if (spawnRules == null) {
       return true;
     }
 
-    return SpawnManager.isEntitySpawnAllowed(spawnRules, EntityType.getKey(mob.getType()));
+    // Handle spawner blocks if they are disabled (optimized check)
+    if (!SpawnerManager.handleSpawnerSpawn(
+        mob.blockPosition(), serverLevel, spawnRules.shouldDisableSpawners())) {
+      return false;
+    }
+
+    return SpawnManager.isNaturalEntitySpawnAllowed(spawnRules, EntityType.getKey(mob.getType()));
   }
 
   public static boolean handleMobSpawnEvent(
@@ -50,7 +58,17 @@ public class SpawnEvents {
       return true;
     }
 
-    return SpawnManager.isEntitySpawnAllowed(spawnRules, EntityType.getKey(entityType));
+    // Block spawner spawns early (before mob is created) but don't remove spawners yet
+    if (SpawnerManager.shouldBlockSpawnerSpawn(
+        spawnPos, serverLevel, spawnRules.shouldDisableSpawners())) {
+      log.debug(
+          "Blocking early spawner spawn for entity type {} at {}",
+          EntityType.getKey(entityType),
+          spawnPos);
+      return false;
+    }
+
+    return SpawnManager.isNaturalEntitySpawnAllowed(spawnRules, EntityType.getKey(entityType));
   }
 
   public static boolean handleFinalizeSpawnEvent(Mob mob, ServerLevel serverLevel) {
@@ -64,7 +82,13 @@ public class SpawnEvents {
       return true;
     }
 
-    return SpawnManager.shouldAllowSpawn(
+    // Handle spawner blocks with removal (for mobs that somehow got through early check)
+    if (!SpawnerManager.handleSpawnerSpawn(
+        mob.blockPosition(), serverLevel, spawnRules.shouldDisableSpawners())) {
+      return false;
+    }
+
+    return SpawnManager.shouldAllowEntitySpawn(
         spawnRules, EntityType.getKey(mob.getType()), isFromSpawner);
   }
 

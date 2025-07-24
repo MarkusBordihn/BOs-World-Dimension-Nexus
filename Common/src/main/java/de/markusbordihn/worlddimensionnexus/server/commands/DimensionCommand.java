@@ -242,14 +242,14 @@ public class DimensionCommand extends Command {
                     Commands.argument("dimension", DimensionArgument.dimension())
                         .suggests(DimensionSuggestion.CUSTOM_DIMENSIONS)
                         .then(
-                            Commands.literal("disableMobSpawn")
+                            Commands.literal("disableNaturalMobSpawning")
                                 .executes(
                                     context ->
                                         getSpawnRuleBooleanValue(
                                             context.getSource(),
                                             DimensionArgument.getDimension(context, "dimension")
                                                 .dimension(),
-                                            "disableMobSpawn"))
+                                            "disableNaturalMobSpawning"))
                                 .then(
                                     Commands.argument("value", StringArgumentType.word())
                                         .suggests(
@@ -260,7 +260,7 @@ public class DimensionCommand extends Command {
                                             })
                                         .executes(
                                             context ->
-                                                setDisableMobSpawn(
+                                                setDisableNaturalMobSpawning(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
@@ -268,14 +268,14 @@ public class DimensionCommand extends Command {
                                                     StringArgumentType.getString(
                                                         context, "value")))))
                         .then(
-                            Commands.literal("disableSpawner")
+                            Commands.literal("disableSpawnerBlocks")
                                 .executes(
                                     context ->
                                         getSpawnRuleBooleanValue(
                                             context.getSource(),
                                             DimensionArgument.getDimension(context, "dimension")
                                                 .dimension(),
-                                            "disableSpawner"))
+                                            "disableSpawnerBlocks"))
                                 .then(
                                     Commands.argument("value", StringArgumentType.word())
                                         .suggests(
@@ -286,7 +286,7 @@ public class DimensionCommand extends Command {
                                             })
                                         .executes(
                                             context ->
-                                                setDisableSpawner(
+                                                setDisableSpawnerBlocks(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
@@ -294,12 +294,12 @@ public class DimensionCommand extends Command {
                                                     StringArgumentType.getString(
                                                         context, "value")))))
                         .then(
-                            Commands.literal("allowMobSpawn")
+                            Commands.literal("allowedEntityTypes")
                                 .then(
                                     Commands.literal("list")
                                         .executes(
                                             context ->
-                                                listAllowedMobs(
+                                                listAllowedEntityTypes(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
@@ -312,7 +312,7 @@ public class DimensionCommand extends Command {
                                                 .suggests(EntityTypeSuggestion.ALL_ENTITY_TYPES)
                                                 .executes(
                                                     context ->
-                                                        addAllowedMob(
+                                                        addAllowedEntityType(
                                                             context.getSource(),
                                                             DimensionArgument.getDimension(
                                                                     context, "dimension")
@@ -327,7 +327,7 @@ public class DimensionCommand extends Command {
                                                 .suggests(EntityTypeSuggestion.ALL_ENTITY_TYPES)
                                                 .executes(
                                                     context ->
-                                                        removeAllowedMob(
+                                                        removeAllowedEntityType(
                                                             context.getSource(),
                                                             DimensionArgument.getDimension(
                                                                     context, "dimension")
@@ -338,18 +338,18 @@ public class DimensionCommand extends Command {
                                     Commands.literal("clear")
                                         .executes(
                                             context ->
-                                                clearAllowedMobs(
+                                                clearAllowedEntityTypes(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
                                                         .dimension()))))
                         .then(
-                            Commands.literal("denyMobSpawn")
+                            Commands.literal("deniedEntityTypes")
                                 .then(
                                     Commands.literal("list")
                                         .executes(
                                             context ->
-                                                listDeniedMobs(
+                                                listDeniedEntityTypes(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
@@ -362,7 +362,7 @@ public class DimensionCommand extends Command {
                                                 .suggests(EntityTypeSuggestion.ALL_ENTITY_TYPES)
                                                 .executes(
                                                     context ->
-                                                        addDeniedMob(
+                                                        addDeniedEntityType(
                                                             context.getSource(),
                                                             DimensionArgument.getDimension(
                                                                     context, "dimension")
@@ -377,7 +377,7 @@ public class DimensionCommand extends Command {
                                                 .suggests(EntityTypeSuggestion.ALL_ENTITY_TYPES)
                                                 .executes(
                                                     context ->
-                                                        removeDeniedMob(
+                                                        removeDeniedEntityType(
                                                             context.getSource(),
                                                             DimensionArgument.getDimension(
                                                                     context, "dimension")
@@ -388,7 +388,7 @@ public class DimensionCommand extends Command {
                                     Commands.literal("clear")
                                         .executes(
                                             context ->
-                                                clearDeniedMobs(
+                                                clearDeniedEntityTypes(
                                                     context.getSource(),
                                                     DimensionArgument.getDimension(
                                                             context, "dimension")
@@ -637,7 +637,7 @@ public class DimensionCommand extends Command {
         source, "Failed to update gametype for dimension '" + dimension.location() + "'.");
   }
 
-  public static int setDisableMobSpawn(
+  public static int setDisableNaturalMobSpawning(
       final CommandSourceStack source, final ResourceKey<Level> dimension, final String value) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {
@@ -645,23 +645,25 @@ public class DimensionCommand extends Command {
     }
 
     boolean disableMobSpawn = Boolean.parseBoolean(value);
-    SpawnRules spawnRules = dimensionInfo.spawnRules().withMobSpawnDisabled(disableMobSpawn);
+    SpawnRules spawnRules =
+        dimensionInfo.spawnRules().withNaturalMobSpawningDisabled(disableMobSpawn);
 
     if (DimensionManager.updateDimensionInfoData(
         dimension, dimensionInfo.withSpawnRules(spawnRules))) {
       return sendSuccessMessage(
           source,
-          "Mob spawn "
+          "Natural mob spawn "
               + (disableMobSpawn ? "disabled" : "enabled")
               + " for dimension '"
               + dimension.location()
               + "'.");
     }
     return sendFailureMessage(
-        source, "Failed to update mob spawn setting for dimension '" + dimension.location() + "'.");
+        source,
+        "Failed to update natural mob spawn setting for dimension '" + dimension.location() + "'.");
   }
 
-  public static int setDisableSpawner(
+  public static int setDisableSpawnerBlocks(
       final CommandSourceStack source, final ResourceKey<Level> dimension, final String value) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {
@@ -669,20 +671,21 @@ public class DimensionCommand extends Command {
     }
 
     boolean disableSpawner = Boolean.parseBoolean(value);
-    SpawnRules spawnRules = dimensionInfo.spawnRules().withSpawningDisabled(disableSpawner);
+    SpawnRules spawnRules = dimensionInfo.spawnRules().withSpawnerBlocksDisabled(disableSpawner);
 
     if (DimensionManager.updateDimensionInfoData(
         dimension, dimensionInfo.withSpawnRules(spawnRules))) {
       return sendSuccessMessage(
           source,
-          "Spawner "
+          "Spawner blocks "
               + (disableSpawner ? "disabled" : "enabled")
               + " for dimension '"
               + dimension.location()
               + "'.");
     }
     return sendFailureMessage(
-        source, "Failed to update spawner setting for dimension '" + dimension.location() + "'.");
+        source,
+        "Failed to update spawner blocks setting for dimension '" + dimension.location() + "'.");
   }
 
   public static int getSpawnRuleBooleanValue(
@@ -694,10 +697,10 @@ public class DimensionCommand extends Command {
 
     boolean value;
     switch (rule) {
-      case "disableMobSpawn":
+      case "disableNaturalMobSpawning":
         value = dimensionInfo.spawnRules().isMobSpawnDisabled();
         break;
-      case "disableSpawner":
+      case "disableSpawnerBlocks":
         value = dimensionInfo.spawnRules().isSpawningDisabled();
         break;
       default:
@@ -707,7 +710,7 @@ public class DimensionCommand extends Command {
     return sendSuccessMessage(source, String.format("'%s' is currently set to %s.", rule, value));
   }
 
-  public static int listAllowedMobs(
+  public static int listAllowedEntityTypes(
       final CommandSourceStack source, final ResourceKey<Level> dimension) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {
@@ -726,7 +729,7 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int listDeniedMobs(
+  public static int listDeniedEntityTypes(
       final CommandSourceStack source, final ResourceKey<Level> dimension) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {
@@ -745,7 +748,7 @@ public class DimensionCommand extends Command {
     return Command.SINGLE_SUCCESS;
   }
 
-  public static int addAllowedMob(
+  public static int addAllowedEntityType(
       final CommandSourceStack source,
       final ResourceKey<Level> dimension,
       final ResourceLocation entity) {
@@ -762,7 +765,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Failed to add entity to allowed mobs.");
   }
 
-  public static int removeAllowedMob(
+  public static int removeAllowedEntityType(
       final CommandSourceStack source,
       final ResourceKey<Level> dimension,
       final ResourceLocation entity) {
@@ -779,7 +782,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Failed to remove entity from allowed mobs.");
   }
 
-  public static int addDeniedMob(
+  public static int addDeniedEntityType(
       final CommandSourceStack source,
       final ResourceKey<Level> dimension,
       final ResourceLocation entity) {
@@ -796,7 +799,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Failed to add entity to denied mobs.");
   }
 
-  public static int removeDeniedMob(
+  public static int removeDeniedEntityType(
       final CommandSourceStack source,
       final ResourceKey<Level> dimension,
       final ResourceLocation entity) {
@@ -813,7 +816,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Failed to remove entity from denied mobs.");
   }
 
-  public static int clearAllowedMobs(
+  public static int clearAllowedEntityTypes(
       final CommandSourceStack source, final ResourceKey<Level> dimension) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {
@@ -828,7 +831,7 @@ public class DimensionCommand extends Command {
     return sendFailureMessage(source, "Failed to clear allowed mobs.");
   }
 
-  public static int clearDeniedMobs(
+  public static int clearDeniedEntityTypes(
       final CommandSourceStack source, final ResourceKey<Level> dimension) {
     DimensionInfoData dimensionInfo = DimensionManager.getDimensionInfo(dimension);
     if (dimensionInfo == null) {

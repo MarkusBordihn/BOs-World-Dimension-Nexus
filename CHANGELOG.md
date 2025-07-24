@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# v0.7.0
+
+- Refactored spawn commands for better naming and consistency.
+- Fixed spawn manager logic to support documented use cases.
+- Updated spawn command documentation to clarify usage.
+
 # v0.6.0
 
 - Fixed example lobby_dimension.wdn file and disabled slime spawn.

@@ -30,62 +30,65 @@ public class SpawnManager {
 
   private SpawnManager() {}
 
-  public static boolean isEntitySpawnAllowed(SpawnRules spawnRules, ResourceLocation entityType) {
+  public static boolean isNaturalEntitySpawnAllowed(
+      SpawnRules spawnRules, ResourceLocation entityType) {
     // If no spawn rules are provided, allow all spawns.
     if (spawnRules == null) {
-      log.debug("No spawn rules provided, allowing spawn for entity: {}", entityType);
+      log.debug("No spawn rules provided, allowing natural spawn for entity: {}", entityType);
       return true;
     }
 
-    // If mob spawning is globally disabled, only check allow list.
+    // If natural mob spawning is globally disabled, only check allow list
     if (spawnRules.isMobSpawnDisabled()) {
       boolean isAllowed = spawnRules.getAllowedMobs().contains(entityType);
       log.debug(
-          "Mob spawning globally disabled. Entity {} is {}",
+          "Natural mob spawning globally disabled. Entity {} is {}",
           entityType,
           isAllowed ? "allowed" : "denied");
       return isAllowed;
     }
 
-    // Check deny list first - if entity is explicitly denied, block it.
+    // Check deny list first - if entity is explicitly denied, block it
     if (spawnRules.getDeniedMobs().contains(entityType)) {
-      log.debug("Entity {} is in deny list, blocking spawn", entityType);
+      log.debug("Entity {} is in deny list, blocking natural spawn", entityType);
       return false;
     }
 
-    // Check allow list only if it's not empty.
+    // Check allow list only if it's not empty
     if (!spawnRules.getAllowedMobs().isEmpty()
         && !spawnRules.getAllowedMobs().contains(entityType)) {
-      log.debug("Entity {} is not in allow list, blocking spawn", entityType);
+      log.debug("Entity {} is not in allow list, blocking natural spawn", entityType);
       return false;
     }
 
-    log.debug("Entity {} is allowed to spawn", entityType);
+    log.debug("Entity {} is allowed to spawn naturally", entityType);
     return true;
   }
 
-  public static boolean areSpawnersDisabled(SpawnRules spawnRules) {
+  public static boolean areSpawnerBlocksDisabled(SpawnRules spawnRules) {
     if (spawnRules == null) {
       return false;
     }
 
     boolean disabled = spawnRules.shouldDisableSpawners();
-    log.debug("Spawners are {}", disabled ? "disabled" : "enabled");
+    log.debug("Spawner blocks are {}", disabled ? "disabled" : "enabled");
     return disabled;
   }
 
-  public static boolean shouldAllowSpawn(
+  public static boolean shouldAllowEntitySpawn(
       SpawnRules spawnRules, ResourceLocation entityType, Boolean isFromSpawner) {
     if (spawnRules == null) {
       log.debug("No spawn rules provided, allowing spawn for entity: {}", entityType);
       return true;
     }
 
-    if (isFromSpawner != null && isFromSpawner && areSpawnersDisabled(spawnRules)) {
-      log.debug("Spawner spawn blocked for entity {} (spawners disabled)", entityType);
+    // Check spawner-specific rules first if this is from a spawner
+    if (isFromSpawner != null && isFromSpawner && areSpawnerBlocksDisabled(spawnRules)) {
+      log.debug("Spawner spawn blocked for entity {} (spawner blocks disabled)", entityType);
       return false;
     }
 
-    return isEntitySpawnAllowed(spawnRules, entityType);
+    // Then check natural spawning rules
+    return isNaturalEntitySpawnAllowed(spawnRules, entityType);
   }
 }

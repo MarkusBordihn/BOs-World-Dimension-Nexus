@@ -32,18 +32,17 @@ import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 public class TeleportCommand extends Command {
 
   private static final String PLAYER_ARGUMENT = "player";
+  private static final String DIMENSION_ARGUMENT = "dimension";
   private static final String TELEPORTED_MESSAGE = "Teleported ";
 
   private TeleportCommand() {}
@@ -51,15 +50,27 @@ public class TeleportCommand extends Command {
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
     return Commands.literal("teleport")
         .then(
-            Commands.literal("dimension")
+            Commands.literal(DIMENSION_ARGUMENT)
                 .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
                 .then(
-                    Commands.argument("name", ResourceLocationArgument.id())
-                        .suggests(DimensionSuggestion.DIMENSION_NAMES)
-                        .executes(TeleportCommand::teleportToDimension)
+                    Commands.argument(DIMENSION_ARGUMENT, DimensionArgument.dimension())
+                        .suggests(DimensionSuggestion.ALL_DIMENSIONS)
+                        .executes(
+                            context ->
+                                teleportToDimension(
+                                    context.getSource(),
+                                    DimensionArgument.getDimension(context, DIMENSION_ARGUMENT)
+                                        .dimension()))
                         .then(
                             Commands.argument(PLAYER_ARGUMENT, EntityArgument.player())
-                                .executes(TeleportCommand::teleportPlayerToDimension))))
+                                .executes(
+                                    context ->
+                                        teleportPlayerToDimension(
+                                            context.getSource(),
+                                            DimensionArgument.getDimension(
+                                                    context, DIMENSION_ARGUMENT)
+                                                .dimension(),
+                                            EntityArgument.getPlayer(context, PLAYER_ARGUMENT))))))
         .then(
             Commands.literal("back")
                 .requires(cs -> TeleportConfig.ENABLE_BACK_TELEPORT_COMMAND)
@@ -85,41 +96,38 @@ public class TeleportCommand extends Command {
                         .executes(TeleportCommand::showPlayerTeleportHistory)));
   }
 
-  private static int teleportToDimension(final CommandContext<CommandSourceStack> context)
+  private static int teleportToDimension(
+      final CommandSourceStack source, final ResourceKey<Level> dimension)
       throws CommandSyntaxException {
-    ResourceLocation dimensionLocation = ResourceLocationArgument.getId(context, "name");
-    ServerPlayer player = context.getSource().getPlayerOrException();
+    ServerPlayer player = source.getPlayerOrException();
 
-    ResourceKey<Level> dimensionKey = ResourceKey.create(Registries.DIMENSION, dimensionLocation);
-    if (TeleportManager.safeTeleportToDimension(player, dimensionKey)) {
+    if (TeleportManager.safeTeleportToDimension(player, dimension)) {
       return sendSuccessMessage(
-          context.getSource(),
+          source,
           Component.literal("Teleported to dimension ")
               .withStyle(ChatFormatting.GREEN)
               .append(
-                  Component.literal(dimensionLocation.toString())
+                  Component.literal(dimension.location().toString())
                       .withStyle(ChatFormatting.YELLOW)));
     }
     return sendFailureMessage(
-        context.getSource(),
+        source,
         Component.literal("Failed to teleport to dimension ")
             .withStyle(ChatFormatting.RED)
             .append(
-                Component.literal(dimensionLocation.toString()).withStyle(ChatFormatting.YELLOW))
+                Component.literal(dimension.location().toString()).withStyle(ChatFormatting.YELLOW))
             .append(
                 Component.literal(". Dimension may not exist or be loaded.")
                     .withStyle(ChatFormatting.GRAY)));
   }
 
-  private static int teleportPlayerToDimension(final CommandContext<CommandSourceStack> context)
-      throws CommandSyntaxException {
-    ResourceLocation dimensionLocation = ResourceLocationArgument.getId(context, "name");
-    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, PLAYER_ARGUMENT);
-
-    ResourceKey<Level> dimensionKey = ResourceKey.create(Registries.DIMENSION, dimensionLocation);
-    if (TeleportManager.safeTeleportToDimension(targetPlayer, dimensionKey)) {
+  private static int teleportPlayerToDimension(
+      final CommandSourceStack source,
+      final ResourceKey<Level> dimension,
+      final ServerPlayer targetPlayer) {
+    if (TeleportManager.safeTeleportToDimension(targetPlayer, dimension)) {
       return sendSuccessMessage(
-          context.getSource(),
+          source,
           Component.literal(TELEPORTED_MESSAGE)
               .withStyle(ChatFormatting.GREEN)
               .append(
@@ -127,10 +135,11 @@ public class TeleportCommand extends Command {
                       .withStyle(ChatFormatting.YELLOW))
               .append(Component.literal(" to dimension ").withStyle(ChatFormatting.GREEN))
               .append(
-                  Component.literal(dimensionLocation.toString()).withStyle(ChatFormatting.AQUA)));
+                  Component.literal(dimension.location().toString())
+                      .withStyle(ChatFormatting.YELLOW)));
     }
     return sendFailureMessage(
-        context.getSource(),
+        source,
         Component.literal("Failed to teleport ")
             .withStyle(ChatFormatting.RED)
             .append(
@@ -138,7 +147,10 @@ public class TeleportCommand extends Command {
                     .withStyle(ChatFormatting.YELLOW))
             .append(Component.literal(" to dimension ").withStyle(ChatFormatting.RED))
             .append(
-                Component.literal(dimensionLocation.toString()).withStyle(ChatFormatting.YELLOW)));
+                Component.literal(dimension.location().toString()).withStyle(ChatFormatting.YELLOW))
+            .append(
+                Component.literal(". Dimension may not exist or be loaded.")
+                    .withStyle(ChatFormatting.GRAY)));
   }
 
   private static int teleportBack(final CommandContext<CommandSourceStack> context)
@@ -188,7 +200,7 @@ public class TeleportCommand extends Command {
 
   private static int teleportPlayerBack(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
-    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
+    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, PLAYER_ARGUMENT);
 
     if (TeleportManager.teleportBack(targetPlayer)) {
       return sendSuccessMessage(
@@ -235,7 +247,7 @@ public class TeleportCommand extends Command {
 
   private static int teleportPlayerToOverworld(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
-    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
+    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, PLAYER_ARGUMENT);
 
     if (TeleportManager.teleportToDimensionWithoutHistory(targetPlayer, Level.OVERWORLD)) {
       return sendSuccessMessage(
@@ -269,7 +281,7 @@ public class TeleportCommand extends Command {
 
   private static int showPlayerTeleportHistory(final CommandContext<CommandSourceStack> context)
       throws CommandSyntaxException {
-    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, "player");
+    ServerPlayer targetPlayer = EntityArgument.getPlayer(context, PLAYER_ARGUMENT);
     String historyText = TeleportHistory.getFormattedPlayerHistory(targetPlayer.getUUID());
 
     Component historyComponent =

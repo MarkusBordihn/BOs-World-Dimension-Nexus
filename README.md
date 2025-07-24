@@ -19,7 +19,7 @@
 any client-side installation.**
 
 🛠️ *This mod is created as part of
-the [NeoForged Serverside Summer Modjam 2025](https://neoforged.net/news/2025serversidesummer/).*
+the [NeoForged Serverside Summer Modjam 2025][neoforged-modjam].*
 
 ⚠️ **Beta Version Notice**: This mod is currently in beta. Features and commands may change before
 the stable release.
@@ -80,7 +80,7 @@ After running these commands:
 - 🎣 Players will be sent to the fishing dimension when they die.
 
 💡 *Tip: You can customize triggers, target dimensions, and even coordinates!
-See* [Auto-Teleport Commands](wiki/Commands-Auto-Teleport.md) *for advanced options.*
+See* [Auto-Teleport Commands][commands-auto-teleport] *for advanced options.*
 
 Note: The hot-creation of dimensions is limited, so you might need to restart the server
 to get the dimensions fully functional with all features and entities.
@@ -116,43 +116,65 @@ You can now use the portals to teleport between the dimensions.
 
 ## 📚 Documentation
 
-📖 **[Complete Wiki Documentation](wiki/Home.md)** - Comprehensive guides and tutorials
+📖 **[Complete Wiki Documentation][wiki]** - Comprehensive guides and tutorials
 
 ### Quick Links
 
-- [⚡ Quick Start Guide](wiki/Quick-Start.md) - Get started in 5 minutes
-- [🌍 Dimension Commands](wiki/Commands-Dimension.md) - Create and manage dimensions
-- [🚀 Teleport Commands](wiki/Commands-Teleport.md) - Player teleportation
-- [🤖 Auto-Teleport Commands](wiki/Commands-Auto-Teleport.md) - Automated rules
-- [🏗️ Example Tutorials](wiki/Examples-Creative-World.md) - Step-by-step setups
+- [⚡ Quick Start Guide][quick-start] - Get started in 5 minutes
+- [🌍 Dimension Commands][commands-dimension] - Create and manage dimensions
+- [🚀 Teleport Commands][commands-teleport] - Player teleportation
+- [🤖 Auto-Teleport Commands][commands-auto-teleport] - Automated rules
+- [🏗️ Example Tutorials][examples-creative] - Step-by-step setups
 
 ## 🤝 Contributing
 
 We welcome contributions! Please:
 
-1. Check existing [issues](../../issues) and [pull requests](../../pulls)
+1. Check existing [issues][issues] and [pull requests][pull-requests]
 2. Follow the existing code style and conventions
 3. Test your changes thoroughly
 4. Update documentation as needed
 
 ## 🐛 Support
 
-- **Bug Reports**: [GitHub Issues](../../issues)
-- **Feature Requests**: [GitHub Discussions](../../discussions)
-- **Documentation**: [Wiki](wiki/Home.md)
-- **Troubleshooting**: [Debug Guide](wiki/Commands-Debug.md)
+- **Bug Reports**: [GitHub Issues][issues]
+- **Feature Requests**: [GitHub Discussions][discussions]
+- **Documentation**: [Wiki][wiki-home]
+- **Troubleshooting**: [Debug Guide][debug-guide]
 
 ## 📜 License
 
-This project is open source under the [MIT License](LICENSE.md).
+This project is open source under the [MIT License][license].
 
-**Ready to get started?** Check out the [Quick Start Guide](wiki/Quick-Start.md) to create your
+**Ready to get started?** Check out the [Quick Start Guide][quick-start] to create your
 first dimension in minutes!
 
 [ko-fi]: https://ko-fi.com/Kaworru
 
 [wiki]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki
 
+[wiki-home]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Home
+
 [issues]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/issues
+
+[pull-requests]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/pulls
+
+[discussions]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/discussions
+
+[license]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/blob/main/LICENSE.md
+
+[neoforged-modjam]: https://neoforged.net/news/2025serversidesummer/
+
+[quick-start]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Quick-Start
+
+[commands-dimension]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Commands-Dimension
+
+[commands-teleport]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Commands-Teleport
+
+[commands-auto-teleport]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Commands-Auto-Teleport
+
+[examples-creative]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Examples-Creative-World
+
+[debug-guide]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/Commands-Debug
 
 [logo]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/wiki/images/logo_header.png
