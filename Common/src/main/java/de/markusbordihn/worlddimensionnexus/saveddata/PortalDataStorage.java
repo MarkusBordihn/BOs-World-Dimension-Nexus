@@ -38,7 +38,7 @@ public class PortalDataStorage extends SavedData {
 
   public static final String DATA_NAME = Constants.MOD_ID + "_portals";
 
-  private static final PrefixLogger log = ModLogger.getPrefixLogger("[Portal Data Storage]");
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Portal Data Storage");
 
   private static final String PORTAL_TAG = "Portals";
   private static final String TARGETS_TAG = "Targets";

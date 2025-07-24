@@ -32,9 +32,7 @@ public class FrameColorSuggestion {
   public static final SuggestionProvider<CommandSourceStack> FRAME_COLOR =
       (context, builder) -> {
         List<String> frameColors =
-            Arrays.stream(DyeColor.values())
-                .map(color -> color.getName())
-                .collect(Collectors.toList());
+            Arrays.stream(DyeColor.values()).map(DyeColor::getName).collect(Collectors.toList());
 
         return SharedSuggestionProvider.suggest(frameColors, builder);
       };

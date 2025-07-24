@@ -290,7 +290,8 @@ public class DimensionImporter {
           finalChunkGeneratorType,
           true,
           fileBasedDimensionInfo.spawnPoint(),
-          fileBasedDimensionInfo.gameType());
+          fileBasedDimensionInfo.gameType(),
+          fileBasedDimensionInfo.spawnRules());
     }
 
     return DimensionInfoData.fromDimensionNameAndType(finalDimensionName, finalChunkGeneratorType);

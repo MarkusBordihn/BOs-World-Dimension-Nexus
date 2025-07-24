@@ -29,7 +29,6 @@ public class BlockRegistry {
   private static final Map<String, Block> BLOCK_NAME_MAP = new HashMap<>();
 
   static {
-    // Initialize the block name mappings
     BLOCK_NAME_MAP.put("minecraft:diamond_block", Blocks.DIAMOND_BLOCK);
     BLOCK_NAME_MAP.put("minecraft:emerald_block", Blocks.EMERALD_BLOCK);
     BLOCK_NAME_MAP.put("minecraft:netherite_block", Blocks.NETHERITE_BLOCK);
@@ -50,78 +49,21 @@ public class BlockRegistry {
     BLOCK_NAME_MAP.put("minecraft:deepslate", Blocks.DEEPSLATE);
   }
 
-  private BlockRegistry() {
-    // Utility class - prevent instantiation
+  private BlockRegistry() {}
+
+  private static String normalizeBlockName(String blockName) {
+    if (blockName == null || blockName.trim().isEmpty()) {
+      return null;
+    }
+
+    String normalized = blockName.toLowerCase().trim();
+    return normalized.startsWith("minecraft:") ? normalized : "minecraft:" + normalized;
   }
 
-  /**
-   * Converts a block name string to a Block instance.
-   *
-   * @param blockName the minecraft block name (e.g., "minecraft:diamond_block")
-   * @return the corresponding Block instance, or diamond block as fallback
-   */
   public static Block getBlockFromName(String blockName) {
-    if (blockName == null || blockName.trim().isEmpty()) {
-      return Blocks.DIAMOND_BLOCK;
-    }
-
-    String normalizedName = blockName.toLowerCase().trim();
-    Block block = BLOCK_NAME_MAP.get(normalizedName);
-
-    if (block != null) {
-      return block;
-    }
-
-    // Try without the minecraft: prefix if it was provided
-    if (normalizedName.startsWith("minecraft:")) {
-      String simpleName = normalizedName.substring("minecraft:".length());
-      block = BLOCK_NAME_MAP.get("minecraft:" + simpleName);
-      if (block != null) {
-        return block;
-      }
-    } else {
-      // Try with minecraft: prefix if it wasn't provided
-      block = BLOCK_NAME_MAP.get("minecraft:" + normalizedName);
-      if (block != null) {
-        return block;
-      }
-    }
-
-    // Return diamond block as safe fallback
-    return Blocks.DIAMOND_BLOCK;
-  }
-
-  /**
-   * Checks if a block name is supported by this registry.
-   *
-   * @param blockName the block name to check
-   * @return true if the block name is supported, false otherwise
-   */
-  public static boolean isBlockNameSupported(String blockName) {
-    if (blockName == null || blockName.trim().isEmpty()) {
-      return false;
-    }
-
-    String normalizedName = blockName.toLowerCase().trim();
-    if (BLOCK_NAME_MAP.containsKey(normalizedName)) {
-      return true;
-    }
-
-    // Check with/without minecraft: prefix
-    if (normalizedName.startsWith("minecraft:")) {
-      String simpleName = normalizedName.substring("minecraft:".length());
-      return BLOCK_NAME_MAP.containsKey("minecraft:" + simpleName);
-    } else {
-      return BLOCK_NAME_MAP.containsKey("minecraft:" + normalizedName);
-    }
-  }
-
-  /**
-   * Gets all supported block names.
-   *
-   * @return an array of all supported block names
-   */
-  public static String[] getSupportedBlockNames() {
-    return BLOCK_NAME_MAP.keySet().toArray(new String[0]);
+    String normalizedName = normalizeBlockName(blockName);
+    return normalizedName != null
+        ? BLOCK_NAME_MAP.getOrDefault(normalizedName, Blocks.DIAMOND_BLOCK)
+        : Blocks.DIAMOND_BLOCK;
   }
 }

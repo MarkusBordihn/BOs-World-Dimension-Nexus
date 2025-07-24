@@ -40,16 +40,6 @@ public class PortalTypeSuggestion {
 
         return SharedSuggestionProvider.suggest(enabledPortalTypes, builder);
       };
-  public static final SuggestionProvider<CommandSourceStack> ENABLED_PORTAL_TYPE =
-      (context, builder) -> {
-        List<String> enabledPortalTypes =
-            Arrays.stream(PortalType.values())
-                .filter(PortalType::isEnabled)
-                .map(PortalType::getName)
-                .collect(Collectors.toList());
-
-        return SharedSuggestionProvider.suggest(enabledPortalTypes, builder);
-      };
 
   protected PortalTypeSuggestion() {}
 }

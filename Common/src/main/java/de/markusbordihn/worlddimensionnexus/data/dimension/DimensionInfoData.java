@@ -24,6 +24,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
+import de.markusbordihn.worlddimensionnexus.data.spawn.SpawnRules;
 import de.markusbordihn.worlddimensionnexus.levelgen.ChunkGeneratorHelper;
 import de.markusbordihn.worlddimensionnexus.levelgen.JsonChunkGeneratorLoader;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
@@ -51,7 +52,8 @@ public record DimensionInfoData(
     ChunkGeneratorType chunkGeneratorType,
     boolean requiresHotInjectionSync,
     BlockPos spawnPoint,
-    GameType gameType) {
+    GameType gameType,
+    SpawnRules spawnRules) {
 
   public static final String DIMENSION_KEY_TAG = "dimensionKey";
   public static final String TYPE_TAG = "type";
@@ -62,6 +64,7 @@ public record DimensionInfoData(
   public static final String HOT_INJECTION_SYNC_TAG = "requiresHotInjectionSync";
   public static final String SPAWN_POINT_TAG = "spawnPoint";
   public static final String GAME_TYPE_TAG = "gameType";
+  public static final String SPAWN_RULES_TAG = "spawnRules";
 
   public static final String DEFAULT_TYPE = "minecraft:overworld";
   public static final String DEFAULT_EMPTY_STRING = "";
@@ -72,6 +75,7 @@ public record DimensionInfoData(
   public static final GameType DEFAULT_GAME_TYPE = GameType.SURVIVAL;
   public static final ResourceKey<DimensionType> DEFAULT_DIMENSION_TYPE_KEY =
       BuiltinDimensionTypes.OVERWORLD;
+  public static final SpawnRules DEFAULT_SPAWN_RULES = SpawnRules.getDefault();
 
   public static final Codec<DimensionInfoData> CODEC =
       RecordCodecBuilder.create(
@@ -104,7 +108,10 @@ public record DimensionInfoData(
                           .forGetter(DimensionInfoData::spawnPoint),
                       GameType.CODEC
                           .optionalFieldOf(GAME_TYPE_TAG, DEFAULT_GAME_TYPE)
-                          .forGetter(DimensionInfoData::gameType))
+                          .forGetter(DimensionInfoData::gameType),
+                      SpawnRules.CODEC
+                          .optionalFieldOf(SPAWN_RULES_TAG, DEFAULT_SPAWN_RULES)
+                          .forGetter(DimensionInfoData::spawnRules))
                   .apply(instance, DimensionInfoData::new));
   private static final PrefixLogger log = ModLogger.getPrefixLogger("DimensionInfoData");
 
@@ -129,7 +136,8 @@ public record DimensionInfoData(
         DEFAULT_CHUNK_GENERATOR_TYPE,
         DEFAULT_HOT_INJECTION_SYNC,
         DEFAULT_SPAWN_POINT,
-        DEFAULT_GAME_TYPE);
+        DEFAULT_GAME_TYPE,
+        DEFAULT_SPAWN_RULES);
   }
 
   public static DimensionInfoData fromDimensionName(final String dimensionName) {
@@ -156,7 +164,8 @@ public record DimensionInfoData(
         chunkGeneratorType,
         DEFAULT_HOT_INJECTION_SYNC,
         DEFAULT_SPAWN_POINT,
-        DEFAULT_GAME_TYPE);
+        DEFAULT_GAME_TYPE,
+        DEFAULT_SPAWN_RULES);
   }
 
   public static DimensionInfoData fromJson(final JsonObject jsonObject) {
@@ -165,6 +174,7 @@ public record DimensionInfoData(
     GameType gameType = parseGameType(jsonObject);
     ResourceKey<DimensionType> dimensionTypeKey = parseDimensionTypeKey(jsonObject);
     ResourceKey<Level> dimensionKey = parseDimensionKey(jsonObject);
+    SpawnRules spawnRules = parseSpawnRules(jsonObject);
 
     return new DimensionInfoData(
         dimensionKey,
@@ -183,7 +193,8 @@ public record DimensionInfoData(
             ? jsonObject.get(HOT_INJECTION_SYNC_TAG).getAsBoolean()
             : DEFAULT_HOT_INJECTION_SYNC,
         spawnPoint,
-        gameType);
+        gameType,
+        spawnRules);
   }
 
   private static ChunkGeneratorType parseChunkGeneratorType(final JsonObject jsonObject) {
@@ -265,6 +276,19 @@ public record DimensionInfoData(
     }
   }
 
+  private static SpawnRules parseSpawnRules(final JsonObject jsonObject) {
+    if (!jsonObject.has(SPAWN_RULES_TAG)) {
+      return DEFAULT_SPAWN_RULES;
+    }
+
+    try {
+      return SpawnRules.fromJson(jsonObject.getAsJsonObject(SPAWN_RULES_TAG));
+    } catch (Exception e) {
+      log.warn("Failed to parse spawn rules from JSON: {}, using default", e.getMessage());
+      return DEFAULT_SPAWN_RULES;
+    }
+  }
+
   public JsonObject toJson() {
     JsonObject json = new JsonObject();
     json.addProperty(DIMENSION_KEY_TAG, dimensionKey.location().toString());
@@ -277,6 +301,7 @@ public record DimensionInfoData(
     json.addProperty(
         SPAWN_POINT_TAG, spawnPoint.getX() + "," + spawnPoint.getY() + "," + spawnPoint.getZ());
     json.addProperty(GAME_TYPE_TAG, gameType.getName());
+    json.add(SPAWN_RULES_TAG, spawnRules.toJson());
     return json;
   }
 
@@ -302,7 +327,8 @@ public record DimensionInfoData(
         chunkGeneratorType,
         false,
         spawnPoint,
-        gameType);
+        gameType,
+        spawnRules);
   }
 
   public DimensionInfoData withSpawnPoint(final BlockPos newSpawnPoint) {
@@ -315,7 +341,8 @@ public record DimensionInfoData(
         chunkGeneratorType,
         requiresHotInjectionSync,
         newSpawnPoint,
-        gameType);
+        gameType,
+        spawnRules);
   }
 
   public DimensionInfoData withGameType(final GameType newGameType) {
@@ -328,7 +355,22 @@ public record DimensionInfoData(
         chunkGeneratorType,
         requiresHotInjectionSync,
         spawnPoint,
-        newGameType);
+        newGameType,
+        spawnRules);
+  }
+
+  public DimensionInfoData withSpawnRules(final SpawnRules newSpawnRules) {
+    return new DimensionInfoData(
+        dimensionKey,
+        dimensionTypeKey,
+        displayName,
+        description,
+        isCustom,
+        chunkGeneratorType,
+        requiresHotInjectionSync,
+        spawnPoint,
+        gameType,
+        newSpawnRules);
   }
 
   public ChunkGenerator getChunkGenerator(final MinecraftServer minecraftServer) {

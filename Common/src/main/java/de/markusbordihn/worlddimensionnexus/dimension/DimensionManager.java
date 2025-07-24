@@ -32,9 +32,7 @@ import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.RegistryAccess;
@@ -45,7 +43,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.storage.ServerLevelData;
 
@@ -119,10 +116,6 @@ public class DimensionManager {
     }
   }
 
-  public static ServerLevel addOrCreateDimension(final String dimensionName) {
-    return addOrCreateDimension(DimensionInfoData.fromDimensionName(dimensionName), true);
-  }
-
   public static ServerLevel addOrCreateDimension(
       final DimensionInfoData dimensionInfo, final boolean updateStorage) {
     if (dimensionInfo == null) {
@@ -149,59 +142,6 @@ public class DimensionManager {
 
     log.info("Created and loaded new dimension: {}", dimensionInfo.getDimensionKey().location());
     return newLevel;
-  }
-
-  public static ServerLevel createNewDimensionWithJsonSupport(
-      final DimensionInfoData dimensionInfo, final boolean updateStorage) {
-
-    Optional<LevelStem> jsonLevelStem = tryLoadLevelStemFromJson(dimensionInfo);
-    LevelStem levelStem;
-    if (jsonLevelStem.isPresent()) {
-      levelStem = jsonLevelStem.get();
-      log.info(
-          "Using complete LevelStem from JSON for dimension: {}",
-          dimensionInfo.getDimensionKey().location());
-    } else {
-      ChunkGenerator chunkGenerator = dimensionInfo.getChunkGenerator(minecraftServer);
-      levelStem =
-          new LevelStem(dimensionInfo.getDimensionTypeHolder(minecraftServer), chunkGenerator);
-    }
-
-    ServerLevel newLevel = buildServerLevel(dimensionInfo, levelStem);
-    registerDimension(dimensionInfo, newLevel, updateStorage);
-
-    log.info("Created and loaded new dimension: {}", dimensionInfo.getDimensionKey().location());
-    return newLevel;
-  }
-
-  private static Optional<LevelStem> tryLoadLevelStemFromJson(
-      final DimensionInfoData dimensionInfo) {
-    try {
-      String dimensionJsonPath =
-          String.format(
-              "data/%s/dimension/%s_dimension.json",
-              Constants.MOD_ID, dimensionInfo.chunkGeneratorType().getName());
-      Path resourcePath = tryGetResourcePath(dimensionJsonPath);
-      if (resourcePath != null && Files.exists(resourcePath)) {
-        return Optional.of(loadLevelStem(resourcePath, minecraftServer.registryAccess()));
-      }
-
-    } catch (Exception e) {
-      log.debug(
-          "Could not load LevelStem from JSON for {}: {}",
-          dimensionInfo.chunkGeneratorType().getName(),
-          e.getMessage());
-    }
-
-    return Optional.empty();
-  }
-
-  private static Path tryGetResourcePath(final String resourcePath) {
-    try {
-      return null;
-    } catch (Exception e) {
-      return null;
-    }
   }
 
   private static ServerLevel buildServerLevel(
@@ -236,8 +176,8 @@ public class DimensionManager {
     }
   }
 
-  public static boolean removeDimension(final String name) {
-    return removeDimension(getDimensionInfoData(name));
+  public static boolean removeDimension(final ResourceKey<Level> dimensionKey) {
+    return removeDimension(getDimensionInfo(dimensionKey));
   }
 
   public static boolean removeDimension(final DimensionInfoData dimensionInfoData) {
@@ -298,15 +238,6 @@ public class DimensionManager {
     return null;
   }
 
-  public static ServerLevel getDimensionServerLevel(final String name) {
-    DimensionInfoData dimensionInfo = getDimensionInfoData(name);
-    if (dimensionInfo != null) {
-      return getServerLevel(dimensionInfo.getDimensionKey());
-    }
-    log.warn("Dimension {} not found, returning null.", name);
-    return null;
-  }
-
   public static List<ResourceKey<Level>> getDimensions(final MinecraftServer server) {
     return server.levelKeys().stream()
         .filter(levelKey -> !levelKey.equals(Level.OVERWORLD))
@@ -320,33 +251,6 @@ public class DimensionManager {
       }
     }
     return null;
-  }
-
-  public static Collection<String> getDimensionNames() {
-    return dimensions.stream()
-        .map(dimensionInfo -> dimensionInfo.getDimensionKey().location())
-        .filter(location -> location.getNamespace().equals(Constants.MOD_ID))
-        .map(ResourceLocation::getPath)
-        .toList();
-  }
-
-  public static DimensionType loadDimensionType(
-      final Path path, final RegistryAccess registryAccess) throws IllegalArgumentException {
-    try {
-      String json = Files.readString(path);
-      JsonElement element = JsonParser.parseString(json);
-      RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
-      var result = DimensionType.DIRECT_CODEC.parse(ops, element);
-      if (result.error().isPresent()) {
-        throw new IllegalArgumentException(
-            "Error parsing DimensionType: " + result.error().get().message());
-      }
-      return result
-          .result()
-          .orElseThrow(() -> new IllegalArgumentException("Failed to parse DimensionType"));
-    } catch (Exception e) {
-      throw new IllegalArgumentException("Failed to load DimensionType from path: " + path, e);
-    }
   }
 
   public static LevelStem loadLevelStem(final Path path, final RegistryAccess registryAccess)
@@ -400,8 +304,8 @@ public class DimensionManager {
   }
 
   public static boolean updateDimensionInfoData(
-      final String dimensionName, final DimensionInfoData updatedInfo) {
-    DimensionInfoData oldInfo = getDimensionInfoData(dimensionName);
+      final ResourceKey<Level> dimensionKey, final DimensionInfoData updatedInfo) {
+    DimensionInfoData oldInfo = getDimensionInfo(dimensionKey);
     if (oldInfo == null) {
       return false;
     }

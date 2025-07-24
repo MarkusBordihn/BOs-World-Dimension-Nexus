@@ -228,7 +228,7 @@ public class PortalManager {
     }
 
     return portals.stream()
-        .filter(other -> portalInfo.isLinkedTo(other))
+        .filter(portalInfo::isLinkedTo)
         .collect(java.util.stream.Collectors.toList());
   }
 

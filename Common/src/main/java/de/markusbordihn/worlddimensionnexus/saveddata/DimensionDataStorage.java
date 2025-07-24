@@ -28,14 +28,16 @@ import java.util.List;
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
 public class DimensionDataStorage extends SavedData {
 
   public static final String DATA_NAME = Constants.MOD_ID + "_dimensions";
-  private static final PrefixLogger log = ModLogger.getPrefixLogger("[Dimension Data Storage]");
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Dimension Data Storage");
   private static final String DIMENSION_TAG = "Dimensions";
 
   private static DimensionDataStorage instance = null;
@@ -93,8 +95,32 @@ public class DimensionDataStorage extends SavedData {
   }
 
   public void addDimension(final DimensionInfoData dimensionInfoData) {
+    // Remove any existing dimension with the same key to prevent duplicates
+    removeDimensionByKey(dimensionInfoData.dimensionKey());
+
     this.dimensionList.add(dimensionInfoData);
     this.setDirty();
+    log.debug(
+        "Added/Updated dimension in storage: {}", dimensionInfoData.dimensionKey().location());
+  }
+
+  private boolean removeDimensionByKey(final ResourceKey<Level> dimensionKey) {
+    DimensionInfoData toRemove = null;
+    for (DimensionInfoData dimension : this.dimensionList) {
+      if (dimension.dimensionKey().equals(dimensionKey)) {
+        toRemove = dimension;
+        break;
+      }
+    }
+
+    if (toRemove != null) {
+      boolean removed = this.dimensionList.remove(toRemove);
+      if (removed) {
+        log.debug("Removed existing dimension from storage: {}", dimensionKey.location());
+      }
+      return removed;
+    }
+    return false;
   }
 
   public boolean removeDimension(final DimensionInfoData dimensionInfoData) {

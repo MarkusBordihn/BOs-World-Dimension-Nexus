@@ -39,7 +39,7 @@ public class AutoTeleportDataStorage extends SavedData {
 
   public static final String DATA_NAME = Constants.MOD_ID + "_auto_teleports";
 
-  private static final PrefixLogger log = ModLogger.getPrefixLogger("[Auto Teleport Data Storage]");
+  private static final PrefixLogger log = ModLogger.getPrefixLogger("Auto Teleport Data Storage");
 
   private static final String PLAYER_DATA_TAG = "PlayerData";
   private static final String GLOBAL_RULES_TAG = "GlobalRules";

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+# v0.6.0
+
+- Fixed example lobby_dimension.wdn file and disabled slime spawn.
+- Added basic spawn manager to manage mob spawning in dimensions.
+- Added new dimension `spawn` command to prevent all mob spawns in a dimension for #2.
+- Added spawn command documentation to wiki.
+- Updated dimension `export` to pass filename and get clickable link.
+- Smaller code refactorings and code cleanup.
+
+# v0.5.0
+
+- Fixed auto-teleport with always and on_death condition.
+- Improved pre-defined lobby and water dimension type.
+- Added AutoTeleport config file for more customization.
+- Updated wiki pages for easier understanding.
+
 # v0.4.0
 
 - Fixed #1 by adding more specific dimension presets.

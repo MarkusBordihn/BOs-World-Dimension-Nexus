@@ -40,7 +40,7 @@ public class TeleportHistoryDataStorage extends SavedData {
 
   public static final String DATA_NAME = Constants.MOD_ID + "_teleport_history";
   private static final PrefixLogger log =
-      ModLogger.getPrefixLogger("[Teleport History Data Storage]");
+      ModLogger.getPrefixLogger("Teleport History Data Storage");
   private static final String PLAYER_HISTORIES_TAG = "PlayerHistories";
 
   private static TeleportHistoryDataStorage instance = null;

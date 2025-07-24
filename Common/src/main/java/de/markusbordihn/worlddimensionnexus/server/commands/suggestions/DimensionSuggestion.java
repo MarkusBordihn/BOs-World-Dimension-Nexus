@@ -20,35 +20,51 @@
 package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.dimension.DimensionManager;
+import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 public class DimensionSuggestion {
 
   public static final SuggestionProvider<CommandSourceStack> DIMENSION_NAMES =
       (context, builder) -> {
-        MinecraftServer server = context.getSource().getServer();
-        for (ServerLevel level : server.getAllLevels()) {
-          String dimensionResourceKey = level.dimension().location().toString();
-          builder.suggest(dimensionResourceKey);
-        }
-        return builder.buildFuture();
+        List<ResourceKey<Level>> dimensions =
+            DimensionManager.getDimensions(context.getSource().getServer());
+        // Filter to only include dimensions with the MOD_ID prefix
+        return SharedSuggestionProvider.suggest(
+            dimensions.stream()
+                .map(ResourceKey::location)
+                .filter(location -> location.getNamespace().equals(Constants.MOD_ID))
+                .map(ResourceLocation::getPath)
+                .toArray(String[]::new),
+            builder);
       };
-
   public static final SuggestionProvider<CommandSourceStack> ALL_DIMENSIONS =
+      (context, builder) ->
+          SharedSuggestionProvider.suggest(
+              context.getSource().getServer().levelKeys().stream()
+                  .map(ResourceKey::location)
+                  .map(ResourceLocation::toString)
+                  .toArray(String[]::new),
+              builder);
+  public static final SuggestionProvider<CommandSourceStack> CUSTOM_DIMENSIONS =
       (context, builder) -> {
-        MinecraftServer server = context.getSource().getServer();
-        for (ServerLevel level : server.getAllLevels()) {
-          String dimensionResourceKey = level.dimension().location().toString();
-          builder.suggest(dimensionResourceKey);
-        }
-        return builder.buildFuture();
+        List<ResourceKey<Level>> dimensions =
+            DimensionManager.getDimensions(context.getSource().getServer());
+        // Filter to only include dimensions with the MOD_ID prefix
+        return SharedSuggestionProvider.suggest(
+            dimensions.stream()
+                .map(ResourceKey::location)
+                .filter(location -> location.getNamespace().equals(Constants.MOD_ID))
+                .map(ResourceLocation::toString)
+                .toArray(String[]::new),
+            builder);
       };
 
-  public static final SuggestionProvider<CommandSourceStack> CUSTOM_DIMENSIONS =
-      (context, builder) ->
-          SharedSuggestionProvider.suggest(DimensionManager.getDimensionNames(), builder);
+  private DimensionSuggestion() {}
 }

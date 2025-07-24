@@ -20,35 +20,17 @@
 package de.markusbordihn.worlddimensionnexus.server.commands.suggestions;
 
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import de.markusbordihn.worlddimensionnexus.data.chunk.ChunkGeneratorType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.registries.BuiltInRegistries;
 
-public class ChunkGeneratorTypeSuggestion {
+public class EntityTypeSuggestion {
 
-  public static final SuggestionProvider<CommandSourceStack> CHUNK_GENERATOR_TYPES =
-      (context, builder) -> {
-        for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
-          builder.suggest(type.getName());
-        }
-        return builder.buildFuture();
-      };
-
-  public static final SuggestionProvider<CommandSourceStack> CHUNK_GENERATOR_NAMES =
-      (context, builder) -> {
-        String[] typeNames = new String[ChunkGeneratorType.values().length];
-        for (int i = 0; i < ChunkGeneratorType.values().length; i++) {
-          typeNames[i] = ChunkGeneratorType.values()[i].getName();
-        }
-        return SharedSuggestionProvider.suggest(typeNames, builder);
-      };
-
-  public static ChunkGeneratorType parseChunkGeneratorType(String typeName) {
-    for (ChunkGeneratorType type : ChunkGeneratorType.values()) {
-      if (type.getName().equalsIgnoreCase(typeName)) {
-        return type;
-      }
-    }
-    return null;
-  }
+  public static final SuggestionProvider<CommandSourceStack> ALL_ENTITY_TYPES =
+      (context, builder) ->
+          SharedSuggestionProvider.suggest(
+              BuiltInRegistries.ENTITY_TYPE.keySet().stream()
+                  .map(Object::toString)
+                  .toArray(String[]::new),
+              builder);
 }
