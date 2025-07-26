@@ -186,6 +186,7 @@ public class PortalCommand extends Command {
                                     BlockPosArgument.getBlockPos(context, ARG_POSITION)))))
         .then(
             Commands.literal("teleport")
+                .requires(cs -> cs.hasPermission(Commands.LEVEL_MODERATORS))
                 .then(
                     Commands.argument(ARG_POSITION, BlockPosArgument.blockPos())
                         .executes(

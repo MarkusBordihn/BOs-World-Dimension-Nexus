@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# v0.8.0
+
+- Refactored permission checks for commands.
+- Improved code organization with constants and helper methods.
+- Updated lobby_dimension.wdn to block slime spawn.
+
 # v0.7.0
 
 - Refactored spawn commands for better naming and consistency.

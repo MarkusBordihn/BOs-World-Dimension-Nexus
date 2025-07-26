@@ -31,13 +31,29 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 public class NetworkHandler {
 
+  // Constants for better readability and maintainability
+  private static final int DELAYED_UPDATE_TICKS = 1;
+  private static final int DIMENSION_SYNC_DELAY_TICKS = 5;
+  private static final int SKYBLOCK_SPAWN_DELAY_TICKS = 2;
+  private static final int DEFAULT_SYNC_RADIUS = 3;
+  private static final int BLOCK_UPDATE_RANGE = 16;
+  private static final int BLOCK_UPDATE_STEP = 8;
+  private static final int LEVEL_EVENT_SOUND_ID = 1032;
+
+  // Skyblock spawn chest coordinates
+  private static final BlockPos SKYBLOCK_CHEST_POSITION = new BlockPos(10, 65, 8);
+
   public static void sendDelayedBlockUpdatePacket(
       final ServerLevel serverLevel, final ServerPlayer serverPlayer, final BlockPos blockPos) {
+    if (!isValidForNetworkOperation(serverLevel, serverPlayer, blockPos)) {
+      return;
+    }
+
     serverLevel
         .getServer()
         .tell(
             new TickTask(
-                serverLevel.getServer().getTickCount() + 1,
+                serverLevel.getServer().getTickCount() + DELAYED_UPDATE_TICKS,
                 () ->
                     sendBlockUpdatePacket(
                         serverPlayer, blockPos, serverLevel.getBlockState(blockPos))));
@@ -45,6 +61,9 @@ public class NetworkHandler {
 
   public static void sendBlockUpdatePacket(
       final ServerPlayer serverPlayer, final BlockPos blockPos, final BlockState blockState) {
+    if (!isValidForNetworkOperation(serverPlayer, blockPos, blockState)) {
+      return;
+    }
     serverPlayer.connection.send(new ClientboundBlockUpdatePacket(blockPos, blockState));
   }
 
@@ -53,6 +72,10 @@ public class NetworkHandler {
       final ServerLevel serverLevel,
       final int chunkX,
       final int chunkZ) {
+    if (!isValidForNetworkOperation(serverLevel, serverPlayer)) {
+      return;
+    }
+
     serverLevel
         .getServer()
         .execute(
@@ -68,9 +91,13 @@ public class NetworkHandler {
 
   public static void syncDimensionChunks(
       final ServerPlayer serverPlayer, final ServerLevel serverLevel, final int radius) {
-    BlockPos playerPos = serverPlayer.blockPosition();
-    int centerChunkX = playerPos.getX() >> 4;
-    int centerChunkZ = playerPos.getZ() >> 4;
+    if (!isValidForNetworkOperation(serverLevel, serverPlayer)) {
+      return;
+    }
+
+    BlockPos playerPosition = serverPlayer.blockPosition();
+    int centerChunkX = playerPosition.getX() >> 4;
+    int centerChunkZ = playerPosition.getZ() >> 4;
 
     serverLevel
         .getServer()
@@ -86,76 +113,130 @@ public class NetworkHandler {
   }
 
   public static void syncDimensionToClients(final ServerLevel serverLevel) {
-    if (serverLevel == null || serverLevel.getServer() == null) {
+    if (!isValidForNetworkOperation(serverLevel)) {
       return;
     }
 
     final var minecraftServer = serverLevel.getServer();
     minecraftServer.execute(
         () -> {
-          minecraftServer
-              .getPlayerList()
-              .getPlayers()
-              .forEach(
-                  player -> {
-                    player.connection.send(
-                        new ClientboundLevelEventPacket(1032, BlockPos.ZERO, 0, false));
-
-                    if (player.level().dimension().equals(serverLevel.dimension())) {
-                      syncDimensionChunks(player, serverLevel, 3);
-                    }
-                  });
-
-          minecraftServer.tell(
-              new TickTask(
-                  minecraftServer.getTickCount() + 5,
-                  () ->
-                      minecraftServer
-                          .getPlayerList()
-                          .getPlayers()
-                          .forEach(
-                              player -> {
-                                if (player.level().dimension().equals(serverLevel.dimension())) {
-                                  BlockPos playerPos = player.blockPosition();
-                                  for (int x = -16; x <= 16; x += 8) {
-                                    for (int z = -16; z <= 16; z += 8) {
-                                      BlockPos updatePos = playerPos.offset(x, 0, z);
-                                      sendBlockUpdatePacket(
-                                          player, updatePos, serverLevel.getBlockState(updatePos));
-                                    }
-                                  }
-                                }
-                              })));
+          sendLevelEventToAllPlayers(minecraftServer);
+          syncChunksForPlayersInDimension(serverLevel);
+          scheduleDelayedBlockUpdates(serverLevel);
         });
   }
 
   public static void sendBlockEntityUpdate(
       final ServerPlayer serverPlayer, final ServerLevel serverLevel, final BlockPos blockPos) {
+    if (!isValidForNetworkOperation(serverLevel, serverPlayer, blockPos)) {
+      return;
+    }
+
     var blockEntity = serverLevel.getBlockEntity(blockPos);
     if (blockEntity != null) {
-      var packet = blockEntity.getUpdatePacket();
-      if (packet != null) {
-        serverPlayer.connection.send(packet);
+      var updatePacket = blockEntity.getUpdatePacket();
+      if (updatePacket != null) {
+        serverPlayer.connection.send(updatePacket);
       }
     }
   }
 
   public static void syncSkyblockSpawnChunk(
       final ServerPlayer serverPlayer, final ServerLevel serverLevel) {
-    BlockPos chestPos = new BlockPos(10, 65, 8);
+    if (!isValidForNetworkOperation(serverLevel, serverPlayer)) {
+      return;
+    }
 
     serverLevel
         .getServer()
         .tell(
             new TickTask(
-                serverLevel.getServer().getTickCount() + 2,
-                () -> {
-                  var blockEntity = serverLevel.getBlockEntity(chestPos);
-                  if (blockEntity != null) {
-                    sendBlockEntityUpdate(serverPlayer, serverLevel, chestPos);
-                    sendBlockUpdatePacket(
-                        serverPlayer, chestPos, serverLevel.getBlockState(chestPos));
-                  }
-                }));
+                serverLevel.getServer().getTickCount() + SKYBLOCK_SPAWN_DELAY_TICKS,
+                () -> syncSkyblockChestAtPosition(serverPlayer, serverLevel)));
+  }
+
+  // Private helper methods for better code organization and reusability
+
+  private static boolean isValidForNetworkOperation(final Object... objects) {
+    for (Object obj : objects) {
+      if (obj == null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static void sendLevelEventToAllPlayers(
+      final net.minecraft.server.MinecraftServer server) {
+    server
+        .getPlayerList()
+        .getPlayers()
+        .forEach(
+            player ->
+                player.connection.send(
+                    new ClientboundLevelEventPacket(
+                        LEVEL_EVENT_SOUND_ID, BlockPos.ZERO, 0, false)));
+  }
+
+  private static void syncChunksForPlayersInDimension(final ServerLevel serverLevel) {
+    serverLevel
+        .getServer()
+        .getPlayerList()
+        .getPlayers()
+        .forEach(
+            player -> {
+              if (isPlayerInSameDimension(player, serverLevel)) {
+                syncDimensionChunks(player, serverLevel, DEFAULT_SYNC_RADIUS);
+              }
+            });
+  }
+
+  private static void scheduleDelayedBlockUpdates(final ServerLevel serverLevel) {
+    final var minecraftServer = serverLevel.getServer();
+    minecraftServer.tell(
+        new TickTask(
+            minecraftServer.getTickCount() + DIMENSION_SYNC_DELAY_TICKS,
+            () -> updateBlocksAroundPlayersInDimension(serverLevel)));
+  }
+
+  private static void updateBlocksAroundPlayersInDimension(final ServerLevel serverLevel) {
+    serverLevel
+        .getServer()
+        .getPlayerList()
+        .getPlayers()
+        .forEach(
+            player -> {
+              if (isPlayerInSameDimension(player, serverLevel)) {
+                updateBlocksAroundPlayer(player, serverLevel);
+              }
+            });
+  }
+
+  private static void updateBlocksAroundPlayer(
+      final ServerPlayer player, final ServerLevel serverLevel) {
+    BlockPos playerPosition = player.blockPosition();
+    for (int x = -BLOCK_UPDATE_RANGE; x <= BLOCK_UPDATE_RANGE; x += BLOCK_UPDATE_STEP) {
+      for (int z = -BLOCK_UPDATE_RANGE; z <= BLOCK_UPDATE_RANGE; z += BLOCK_UPDATE_STEP) {
+        BlockPos updatePosition = playerPosition.offset(x, 0, z);
+        sendBlockUpdatePacket(player, updatePosition, serverLevel.getBlockState(updatePosition));
+      }
+    }
+  }
+
+  private static boolean isPlayerInSameDimension(
+      final ServerPlayer player, final ServerLevel serverLevel) {
+    return player.level().dimension().equals(serverLevel.dimension());
+  }
+
+  private static void syncSkyblockChestAtPosition(
+      final ServerPlayer serverPlayer, final ServerLevel serverLevel) {
+    var blockEntity = serverLevel.getBlockEntity(SKYBLOCK_CHEST_POSITION);
+    if (blockEntity != null) {
+      sendBlockEntityUpdate(serverPlayer, serverLevel, SKYBLOCK_CHEST_POSITION);
+      sendBlockUpdatePacket(
+          serverPlayer,
+          SKYBLOCK_CHEST_POSITION,
+          serverLevel.getBlockState(SKYBLOCK_CHEST_POSITION));
+    }
   }
 }

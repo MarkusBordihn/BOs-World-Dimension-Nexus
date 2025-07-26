@@ -56,7 +56,7 @@ public class EventPortalCommand extends Command {
 
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
     return Commands.literal("event_portal")
-        .requires(commandSourceStack -> commandSourceStack.hasPermission(2))
+        .requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
         .then(
             Commands.literal("create")
                 .then(

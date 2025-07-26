@@ -46,7 +46,7 @@ public class AutoTeleportCommand extends Command {
 
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
     return Commands.literal("autoteleport")
-        .requires(cs -> cs.hasPermission(2))
+        .requires(cs -> cs.hasPermission(Commands.LEVEL_GAMEMASTERS))
         .then(
             Commands.literal("add")
                 .then(

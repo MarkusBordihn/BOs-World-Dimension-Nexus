@@ -198,6 +198,7 @@ public class DimensionCommand extends Command {
                                             StringArgumentType.getString(context, "filename"))))))
         .then(
             Commands.literal("import")
+                .requires(source -> source.hasPermission(Commands.LEVEL_OWNERS))
                 .then(
                     Commands.argument("file", StringArgumentType.string())
                         .suggests(DimensionImportFileSuggestion::suggestImportFiles)
