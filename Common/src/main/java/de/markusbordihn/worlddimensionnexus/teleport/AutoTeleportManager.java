@@ -62,12 +62,6 @@ public class AutoTeleportManager {
     }
   }
 
-  public static void handlePlayerDeath(final ServerPlayer player) {
-    log.debug(
-        "Processing death-triggered auto-teleport for player: {}", player.getName().getString());
-    processPlayerDeath(player);
-  }
-
   public static void markPlayerForDeathTeleport(final ServerPlayer player) {
     log.debug("Marking player {} for death teleport", player.getName().getString());
 
@@ -147,25 +141,6 @@ public class AutoTeleportManager {
       executeTeleportRule(player, triggerType, teleportRule);
       return; // Exit after first successful teleport to avoid multiple teleports
     }
-  }
-
-  private static void processPlayerDeath(final ServerPlayer player) {
-    log.debug("Processing death trigger for player: {}", player.getName().getString());
-
-    AutoTeleportEntry deathTeleportRule = globalRules.get(AutoTeleportTrigger.ON_DEATH);
-    if (deathTeleportRule == null) {
-      log.debug("No death auto-teleport rule configured");
-      return;
-    }
-
-    String currentDimensionId = getCurrentDimensionId(player);
-
-    if (!canExecuteTrigger(
-        player, AutoTeleportTrigger.ON_DEATH, currentDimensionId, deathTeleportRule)) {
-      return;
-    }
-
-    executeTeleportRule(player, AutoTeleportTrigger.ON_DEATH, deathTeleportRule);
   }
 
   private static String getCurrentDimensionId(final ServerPlayer player) {

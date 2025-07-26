@@ -61,8 +61,7 @@ public class TeleportManager {
 
       if (countdown.hasPlayerMoved()) {
         countdownTeleports.remove(playerId);
-        sendMessage(
-            countdown.getServerPlayer(), "Teleport cancelled: You moved!", ChatFormatting.RED);
+        sendMessage(countdown.serverPlayer(), "Teleport cancelled: You moved!", ChatFormatting.RED);
         continue;
       }
 
@@ -73,10 +72,10 @@ public class TeleportManager {
       } else {
         countdownTeleports.put(playerId, updatedCountdown);
         sendMessage(
-            updatedCountdown.getServerPlayer(),
+            updatedCountdown.serverPlayer(),
             String.format(
                 "Teleport to %s in %d seconds...",
-                updatedCountdown.getTargetDimension(), updatedCountdown.getRemainingSeconds()),
+                updatedCountdown.targetDimension(), updatedCountdown.remainingSeconds()),
             ChatFormatting.YELLOW);
       }
     }
@@ -125,15 +124,15 @@ public class TeleportManager {
   }
 
   private static void executeCountdownTeleport(final CountdownTeleportData countdown) {
-    if (safeTeleportToDimension(countdown.getServerPlayer(), countdown.getTargetDimensionKey())) {
+    if (safeTeleportToDimension(countdown.serverPlayer(), countdown.targetDimensionKey())) {
       sendMessage(
-          countdown.getServerPlayer(),
+          countdown.serverPlayer(),
           String.format(
-              "Successfully teleported to %s!", countdown.getTargetDimensionKey().location()),
+              "Successfully teleported to %s!", countdown.targetDimensionKey().location()),
           ChatFormatting.GREEN);
     } else {
       sendMessage(
-          countdown.getServerPlayer(),
+          countdown.serverPlayer(),
           "Failed to teleport to dimension. Please try again later.",
           ChatFormatting.RED);
     }

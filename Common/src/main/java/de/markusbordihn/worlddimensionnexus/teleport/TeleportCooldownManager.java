@@ -75,12 +75,4 @@ public class TeleportCooldownManager {
 
     return (int) ((cooldownTime - timePassed) / 1000L);
   }
-
-  public static void clearCooldown(final ServerPlayer player) {
-    backTeleportCooldowns.remove(player.getUUID());
-  }
-
-  public static void clearAllCooldowns() {
-    backTeleportCooldowns.clear();
-  }
 }

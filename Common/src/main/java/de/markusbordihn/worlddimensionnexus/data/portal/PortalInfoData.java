@@ -124,29 +124,6 @@ public record PortalInfoData(
         name);
   }
 
-  // Legacy constructor for backward compatibility
-  public PortalInfoData(
-      final ResourceKey<Level> dimension,
-      final BlockPos origin,
-      final Set<BlockPos> frameBlocks,
-      final Set<BlockPos> innerBlocks,
-      final Set<BlockPos> cornerBlocks,
-      final UUID creator,
-      final DyeColor color,
-      final Block edgeBlockType) {
-    this(
-        dimension,
-        origin,
-        frameBlocks,
-        innerBlocks,
-        cornerBlocks,
-        creator,
-        color,
-        edgeBlockType,
-        PortalType.fromCornerBlock(edgeBlockType),
-        "");
-  }
-
   public PortalInfoData withUpdatedLastUsed() {
     return new PortalInfoData(
         this.uuid,

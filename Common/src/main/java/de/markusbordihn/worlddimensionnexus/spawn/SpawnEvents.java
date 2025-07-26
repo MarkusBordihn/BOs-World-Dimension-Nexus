@@ -44,7 +44,7 @@ public class SpawnEvents {
 
     // Handle spawner blocks if they are disabled (optimized check)
     if (!SpawnerManager.handleSpawnerSpawn(
-        mob.blockPosition(), serverLevel, spawnRules.shouldDisableSpawners())) {
+        mob.blockPosition(), serverLevel, spawnRules.disableSpawnerBlocks())) {
       return false;
     }
 
@@ -60,7 +60,7 @@ public class SpawnEvents {
 
     // Block spawner spawns early (before mob is created) but don't remove spawners yet
     if (SpawnerManager.shouldBlockSpawnerSpawn(
-        spawnPos, serverLevel, spawnRules.shouldDisableSpawners())) {
+        spawnPos, serverLevel, spawnRules.disableSpawnerBlocks())) {
       log.debug(
           "Blocking early spawner spawn for entity type {} at {}",
           EntityType.getKey(entityType),
@@ -84,7 +84,7 @@ public class SpawnEvents {
 
     // Handle spawner blocks with removal (for mobs that somehow got through early check)
     if (!SpawnerManager.handleSpawnerSpawn(
-        mob.blockPosition(), serverLevel, spawnRules.shouldDisableSpawners())) {
+        mob.blockPosition(), serverLevel, spawnRules.disableSpawnerBlocks())) {
       return false;
     }
 

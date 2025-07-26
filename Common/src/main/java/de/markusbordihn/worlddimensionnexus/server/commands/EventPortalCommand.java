@@ -53,7 +53,6 @@ public class EventPortalCommand extends Command {
   private static final String ARG_TARGET_POS = "target_pos";
   private static final String ARG_PORTAL_UUID = "portal_uuid";
   private static final String ARG_PORTAL_POS = "portal_pos";
-  private static final String ARG_DIMENSION = "dimension";
 
   public static ArgumentBuilder<CommandSourceStack, ?> register() {
     return Commands.literal("event_portal")

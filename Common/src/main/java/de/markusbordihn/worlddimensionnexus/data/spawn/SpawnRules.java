@@ -197,24 +197,4 @@ public record SpawnRules(
     return new SpawnRules(
         disableNaturalMobSpawning, disableSpawnerBlocks, allowedEntityTypes, DEFAULT_EMPTY_LIST);
   }
-
-  public List<ResourceLocation> getAllowedMobs() {
-    return allowedEntityTypes;
-  }
-
-  public List<ResourceLocation> getDeniedMobs() {
-    return deniedEntityTypes;
-  }
-
-  public boolean isMobSpawnDisabled() {
-    return disableNaturalMobSpawning;
-  }
-
-  public boolean isSpawningDisabled() {
-    return disableSpawnerBlocks;
-  }
-
-  public boolean shouldDisableSpawners() {
-    return disableSpawnerBlocks;
-  }
 }

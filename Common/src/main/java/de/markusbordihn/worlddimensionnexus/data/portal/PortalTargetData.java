@@ -44,13 +44,6 @@ public record PortalTargetData(UUID portalId, ResourceKey<Level> dimension, Bloc
                           .forGetter(PortalTargetData::position))
                   .apply(instance, PortalTargetData::new));
 
-  public PortalTargetData(final UUID portalId) {
-    this(
-        portalId,
-        ResourceKey.create(Registries.DIMENSION, Level.OVERWORLD.location()),
-        BlockPos.ZERO);
-  }
-
   public boolean isEmpty() {
     return this.portalId == null
         || this.dimension == null

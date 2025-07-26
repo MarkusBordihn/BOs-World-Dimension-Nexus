@@ -60,12 +60,4 @@ public record TeleportLocation(
       final GameType gameType) {
     this(dimension, blockPos, yRot, xRot, System.currentTimeMillis(), gameType);
   }
-
-  public TeleportLocation(
-      final ResourceKey<Level> dimension,
-      final BlockPos blockPos,
-      final float yRot,
-      final float xRot) {
-    this(dimension, blockPos, yRot, xRot, System.currentTimeMillis(), GameType.SURVIVAL);
-  }
 }

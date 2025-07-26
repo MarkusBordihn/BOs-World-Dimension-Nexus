@@ -136,22 +136,6 @@ public class DimensionDataStorage extends SavedData {
     return removed;
   }
 
-  public boolean removeDimensionByName(final String name) {
-    DimensionInfoData toRemove = null;
-    for (DimensionInfoData dimension : this.dimensionList) {
-      if (dimension.getDimensionKey().location().getNamespace().equals(Constants.MOD_ID)
-          && dimension.getDimensionKey().location().getPath().equals(name)) {
-        toRemove = dimension;
-        break;
-      }
-    }
-
-    if (toRemove != null) {
-      return removeDimension(toRemove);
-    }
-    return false;
-  }
-
   public List<DimensionInfoData> getDimensions() {
     return this.dimensionList;
   }

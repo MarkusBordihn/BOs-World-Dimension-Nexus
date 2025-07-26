@@ -66,28 +66,4 @@ public record CountdownTeleportData(
   public boolean isCountdownFinished() {
     return remainingSeconds <= 0;
   }
-
-  public ServerPlayer getServerPlayer() {
-    return serverPlayer;
-  }
-
-  public String getTargetDimension() {
-    return targetDimension;
-  }
-
-  public ResourceKey<Level> getTargetDimensionKey() {
-    return targetDimensionKey;
-  }
-
-  public int getRemainingSeconds() {
-    return remainingSeconds;
-  }
-
-  public boolean isMovementDetectionEnabled() {
-    return enableMovementDetection;
-  }
-
-  public Vec3 getStartPosition() {
-    return startPosition;
-  }
 }

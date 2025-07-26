@@ -698,10 +698,10 @@ public class DimensionCommand extends Command {
     boolean value;
     switch (rule) {
       case "disableNaturalMobSpawning":
-        value = dimensionInfo.spawnRules().isMobSpawnDisabled();
+        value = dimensionInfo.spawnRules().disableNaturalMobSpawning();
         break;
       case "disableSpawnerBlocks":
-        value = dimensionInfo.spawnRules().isSpawningDisabled();
+        value = dimensionInfo.spawnRules().disableSpawnerBlocks();
         break;
       default:
         return sendFailureMessage(source, "Unknown spawn rule: " + rule);
@@ -717,7 +717,7 @@ public class DimensionCommand extends Command {
       return sendFailureMessage(source, "Dimension '" + dimension.location() + "' not found.");
     }
 
-    var allowedMobs = dimensionInfo.spawnRules().getAllowedMobs();
+    var allowedMobs = dimensionInfo.spawnRules().allowedEntityTypes();
     if (allowedMobs.isEmpty()) {
       return sendFailureMessage(source, "No allowed mobs for this dimension.");
     }
@@ -736,7 +736,7 @@ public class DimensionCommand extends Command {
       return sendFailureMessage(source, "Dimension '" + dimension.location() + "' not found.");
     }
 
-    var deniedMobs = dimensionInfo.spawnRules().getDeniedMobs();
+    var deniedMobs = dimensionInfo.spawnRules().deniedEntityTypes();
     if (deniedMobs.isEmpty()) {
       return sendFailureMessage(source, "No denied mobs for this dimension.");
     }

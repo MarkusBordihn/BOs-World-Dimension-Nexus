@@ -41,7 +41,6 @@ public class TeleportHistory {
   public static void initialize(final ServerLevel level) {
     storageLevel = level;
     TeleportHistoryDataStorage.init(level);
-    loadAllHistoryFromStorage();
   }
 
   public static void recordLocation(
@@ -60,24 +59,6 @@ public class TeleportHistory {
     }
 
     savePlayerHistoryToStorage(playerId, history);
-  }
-
-  public static void recordLocation(
-      final UUID playerId,
-      final ResourceKey<Level> dimension,
-      final BlockPos position,
-      final float yRot,
-      final float xRot) {
-    recordLocation(playerId, dimension, position, yRot, xRot, GameType.SURVIVAL);
-  }
-
-  public static TeleportLocation getLastLocation(final UUID playerId) {
-    List<TeleportLocation> history = getPlayerHistory(playerId);
-    if (history.isEmpty()) {
-      return null;
-    }
-
-    return history.getFirst();
   }
 
   public static TeleportLocation popLastLocation(final UUID playerId) {
@@ -114,29 +95,18 @@ public class TeleportHistory {
       return "No teleport history found.";
     }
 
-    StringBuilder historyText = new StringBuilder("Teleport History:\n");
+    StringBuilder historyText = new StringBuilder("Teleport History:%n");
     for (int i = 0; i < history.size(); i++) {
       TeleportLocation location = history.get(i);
       String dimensionName = location.dimension().location().toString();
       BlockPos pos = location.position();
       historyText.append(
           String.format(
-              "%d. %s at (%d, %d, %d)\n",
+              "%d. %s at (%d, %d, %d)%n",
               i + 1, dimensionName, pos.getX(), pos.getY(), pos.getZ()));
     }
 
     return historyText.toString();
-  }
-
-  public static void clearPlayerHistory(final UUID playerId) {
-    playerHistory.remove(playerId);
-    if (storageLevel != null) {
-      TeleportHistoryDataStorage.get().clearPlayerHistory(playerId);
-    }
-  }
-
-  public static void clearAllHistory() {
-    playerHistory.clear();
   }
 
   public static void clearAllCache() {
@@ -147,15 +117,6 @@ public class TeleportHistory {
       final UUID playerId, final List<TeleportLocation> history) {
     if (storageLevel != null) {
       TeleportHistoryDataStorage.get().savePlayerHistory(playerId, history);
-    }
-  }
-
-  private static void loadAllHistoryFromStorage() {
-    if (storageLevel != null) {
-      TeleportHistoryDataStorage storage = TeleportHistoryDataStorage.get();
-      playerHistory.clear();
-      // Load each player's history individually since there's no loadAllPlayerHistory method
-      // The storage will be loaded on-demand when players access their history
     }
   }
 }

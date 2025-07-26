@@ -281,48 +281,6 @@ public class PortalBlockManager {
     PortalManager.removePortal(portalInfo);
   }
 
-  public static void destroyPortalBlocks(
-      final ServerLevel level, final ServerPlayer player, final PortalInfoData portalInfo) {
-    if (level == null || portalInfo == null) {
-      return;
-    }
-
-    // Play portal destruction sound at the origin position.
-    level.playSound(
-        null, portalInfo.origin(), SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 0.7F, 1.2F);
-    level.playSound(
-        null, portalInfo.origin(), SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 0.5F, 1.25F);
-
-    // Remove all portal blocks (inner, frame, and corner blocks)
-    for (BlockPos innerBlock : portalInfo.innerBlocks()) {
-      level.removeBlock(innerBlock, true);
-      if (player != null) {
-        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, innerBlock);
-      }
-    }
-
-    for (BlockPos frameBlock : portalInfo.frameBlocks()) {
-      level.removeBlock(frameBlock, true);
-      if (player != null) {
-        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, frameBlock);
-      }
-    }
-
-    for (BlockPos cornerBlock : portalInfo.cornerBlocks()) {
-      level.removeBlock(cornerBlock, true);
-      if (player != null) {
-        NetworkHandler.sendDelayedBlockUpdatePacket(level, player, cornerBlock);
-      }
-    }
-
-    // Send a message to the player who destroyed the portal.
-    if (player != null) {
-      player.sendSystemMessage(Component.literal("Portal blocks destroyed!"));
-    }
-
-    PortalManager.removePortal(portalInfo);
-  }
-
   private static void checkPotentialPortalFromCorner(
       final ServerLevel serverLevel,
       final BlockPos blockPos,

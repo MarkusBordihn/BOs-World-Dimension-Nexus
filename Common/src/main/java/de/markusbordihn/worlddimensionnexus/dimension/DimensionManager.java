@@ -19,9 +19,6 @@
 
 package de.markusbordihn.worlddimensionnexus.dimension;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.mojang.serialization.JsonOps;
 import de.markusbordihn.worlddimensionnexus.Constants;
 import de.markusbordihn.worlddimensionnexus.data.dimension.DimensionInfoData;
 import de.markusbordihn.worlddimensionnexus.data.worldgen.WorldgenInitializer;
@@ -29,14 +26,11 @@ import de.markusbordihn.worlddimensionnexus.network.NetworkHandler;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger;
 import de.markusbordihn.worlddimensionnexus.utils.ModLogger.PrefixLogger;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.RegistryOps;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -253,25 +247,6 @@ public class DimensionManager {
     return null;
   }
 
-  public static LevelStem loadLevelStem(final Path path, final RegistryAccess registryAccess)
-      throws IllegalArgumentException {
-    try {
-      String json = Files.readString(path);
-      JsonElement element = JsonParser.parseString(json);
-      RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess);
-      var result = LevelStem.CODEC.parse(ops, element);
-      if (result.error().isPresent()) {
-        throw new IllegalArgumentException(
-            "Error parsing LevelStem: " + result.error().get().message());
-      }
-      return result
-          .result()
-          .orElseThrow(() -> new IllegalArgumentException("Failed to parse LevelStem"));
-    } catch (Exception e) {
-      throw new IllegalArgumentException("Failed to load LevelStem from path: " + path, e);
-    }
-  }
-
   private static ServerLevel getServerLevel(final ResourceKey<Level> levelKey) {
     return minecraftServer == null ? null : minecraftServer.getLevel(levelKey);
   }
@@ -293,9 +268,7 @@ public class DimensionManager {
     try {
       ResourceLocation dimensionResourceLocation = ResourceLocation.parse(dimension);
       ServerLevel level =
-          server.getLevel(
-              ResourceKey.create(
-                  net.minecraft.core.registries.Registries.DIMENSION, dimensionResourceLocation));
+          server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionResourceLocation));
       return level != null;
     } catch (Exception e) {
       log.debug("Failed to parse dimension resource location: {}", dimension);

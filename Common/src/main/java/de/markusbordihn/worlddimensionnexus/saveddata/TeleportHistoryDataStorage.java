@@ -133,19 +133,11 @@ public class TeleportHistoryDataStorage extends SavedData {
     this.setDirty();
   }
 
-  public List<TeleportLocation> getPlayerHistory(final UUID playerId) {
-    return new ArrayList<>(this.playerHistories.getOrDefault(playerId, new ArrayList<>()));
-  }
-
   public void clearPlayerHistory(final UUID playerId) {
     if (this.playerHistories.remove(playerId) != null) {
       this.setDirty();
       log.info("Cleared teleport history for player: {}", playerId);
     }
-  }
-
-  public Map<UUID, List<TeleportLocation>> getAllPlayerHistories() {
-    return new HashMap<>(this.playerHistories);
   }
 
   @Override

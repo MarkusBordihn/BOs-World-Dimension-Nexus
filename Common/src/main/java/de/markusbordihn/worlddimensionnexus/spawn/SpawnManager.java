@@ -39,8 +39,8 @@ public class SpawnManager {
     }
 
     // If natural mob spawning is globally disabled, only check allow list
-    if (spawnRules.isMobSpawnDisabled()) {
-      boolean isAllowed = spawnRules.getAllowedMobs().contains(entityType);
+    if (spawnRules.disableNaturalMobSpawning()) {
+      boolean isAllowed = spawnRules.allowedEntityTypes().contains(entityType);
       log.debug(
           "Natural mob spawning globally disabled. Entity {} is {}",
           entityType,
@@ -49,14 +49,14 @@ public class SpawnManager {
     }
 
     // Check deny list first - if entity is explicitly denied, block it
-    if (spawnRules.getDeniedMobs().contains(entityType)) {
+    if (spawnRules.deniedEntityTypes().contains(entityType)) {
       log.debug("Entity {} is in deny list, blocking natural spawn", entityType);
       return false;
     }
 
     // Check allow list only if it's not empty
-    if (!spawnRules.getAllowedMobs().isEmpty()
-        && !spawnRules.getAllowedMobs().contains(entityType)) {
+    if (!spawnRules.allowedEntityTypes().isEmpty()
+        && !spawnRules.allowedEntityTypes().contains(entityType)) {
       log.debug("Entity {} is not in allow list, blocking natural spawn", entityType);
       return false;
     }
@@ -70,7 +70,7 @@ public class SpawnManager {
       return false;
     }
 
-    boolean disabled = spawnRules.shouldDisableSpawners();
+    boolean disabled = spawnRules.disableSpawnerBlocks();
     log.debug("Spawner blocks are {}", disabled ? "disabled" : "enabled");
     return disabled;
   }

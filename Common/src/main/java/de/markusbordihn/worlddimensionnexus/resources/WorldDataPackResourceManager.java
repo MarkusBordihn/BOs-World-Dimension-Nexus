@@ -46,11 +46,6 @@ public class WorldDataPackResourceManager {
 
   private static final String DIMENSIONS_RESOURCE_PATH = "/data/world_dimension_nexus/dimensions";
 
-  /**
-   * Gets all dimension files (.wdn) from the resources directory dynamically.
-   *
-   * @return List of resource paths for dimension files
-   */
   private static List<String> getDimensionResourceFiles() {
     List<String> dimensionFiles = new ArrayList<>();
 
