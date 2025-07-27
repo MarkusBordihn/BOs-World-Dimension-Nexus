@@ -50,6 +50,23 @@ public record PortalInfoData(
     PortalType portalType,
     String name) {
 
+  public static final String UUID_TAG = "uuid";
+  public static final String DIMENSION_TAG = "dimension";
+  public static final String ORIGIN_TAG = "origin";
+  public static final String FRAME_BLOCKS_TAG = "frameBlocks";
+  public static final String INNER_BLOCKS_TAG = "innerBlocks";
+  public static final String CORNER_BLOCKS_TAG = "cornerBlocks";
+  public static final String CREATOR_TAG = "creator";
+  public static final String COLOR_TAG = "color";
+  public static final String EDGE_BLOCK_TAG = "edgeBlock";
+  public static final String LAST_USED_TAG = "lastUsed";
+  public static final String PORTAL_TYPE_TAG = "portalType";
+  public static final String NAME_TAG = "name";
+
+  public static final long DEFAULT_LAST_USED = 0L;
+  public static final PortalType DEFAULT_PORTAL_TYPE = PortalType.PLAYER;
+  public static final String DEFAULT_NAME = "";
+
   public static final Codec<BlockPos> BLOCK_POS_CODEC =
       Codec.INT_STREAM.comapFlatMap(
           stream -> {
@@ -71,31 +88,33 @@ public record PortalInfoData(
           instance ->
               instance
                   .group(
-                      UUIDUtil.CODEC.fieldOf("uuid").forGetter(PortalInfoData::uuid),
-                      LEVEL_KEY_CODEC.fieldOf("dimension").forGetter(PortalInfoData::dimension),
-                      BLOCK_POS_CODEC.fieldOf("origin").forGetter(PortalInfoData::origin),
+                      UUIDUtil.CODEC.fieldOf(UUID_TAG).forGetter(PortalInfoData::uuid),
+                      LEVEL_KEY_CODEC.fieldOf(DIMENSION_TAG).forGetter(PortalInfoData::dimension),
+                      BLOCK_POS_CODEC.fieldOf(ORIGIN_TAG).forGetter(PortalInfoData::origin),
                       BLOCK_POS_SET_CODEC
-                          .fieldOf("frameBlocks")
+                          .fieldOf(FRAME_BLOCKS_TAG)
                           .forGetter(PortalInfoData::frameBlocks),
                       BLOCK_POS_SET_CODEC
-                          .fieldOf("innerBlocks")
+                          .fieldOf(INNER_BLOCKS_TAG)
                           .forGetter(PortalInfoData::innerBlocks),
                       BLOCK_POS_SET_CODEC
-                          .fieldOf("cornerBlocks")
+                          .fieldOf(CORNER_BLOCKS_TAG)
                           .forGetter(PortalInfoData::cornerBlocks),
-                      UUIDUtil.CODEC.fieldOf("creator").forGetter(PortalInfoData::creator),
-                      DyeColor.CODEC.fieldOf("color").forGetter(PortalInfoData::color),
+                      UUIDUtil.CODEC.fieldOf(CREATOR_TAG).forGetter(PortalInfoData::creator),
+                      DyeColor.CODEC.fieldOf(COLOR_TAG).forGetter(PortalInfoData::color),
                       BuiltInRegistries.BLOCK
                           .byNameCodec()
-                          .fieldOf("edgeBlock")
+                          .fieldOf(EDGE_BLOCK_TAG)
                           .forGetter(PortalInfoData::edgeBlockType),
                       Codec.LONG
-                          .optionalFieldOf("lastUsed", 0L)
+                          .optionalFieldOf(LAST_USED_TAG, DEFAULT_LAST_USED)
                           .forGetter(PortalInfoData::lastUsed),
                       PortalType.CODEC
-                          .optionalFieldOf("portalType", PortalType.PLAYER)
+                          .optionalFieldOf(PORTAL_TYPE_TAG, DEFAULT_PORTAL_TYPE)
                           .forGetter(PortalInfoData::portalType),
-                      Codec.STRING.optionalFieldOf("name", "").forGetter(PortalInfoData::name))
+                      Codec.STRING
+                          .optionalFieldOf(NAME_TAG, DEFAULT_NAME)
+                          .forGetter(PortalInfoData::name))
                   .apply(instance, PortalInfoData::new));
 
   public PortalInfoData(

@@ -1,6 +1,13 @@
 # Changelog for World Dimension Nexus
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be summarized in this file.
+For the full changelog, please go to the [Git Hub History][history] instead.
+
+# v0.9.0
+- Added private and public warp system and commands.
+- Added warp system wiki.
+- Improved PortalInfoData record.
+- Updated README.md with latest changes.
 
 # v0.8.0
 
@@ -56,3 +63,5 @@ First beta release for Minecraft 1.21.1 with NeoForge for testing and feedback.
 
 ⚠️ Beta Version Notice: This mod is currently in beta.
 Features and commands may change before the stable release.
+
+[history]: https://github.com/MarkusBordihn/BOs-World-Dimension-Nexus/commits/1.21.1/

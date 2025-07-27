@@ -26,14 +26,39 @@ the stable release.
 
 ## ✨ Key Features
 
-- 🌍 **Multi-World Support** - Create and manage unlimited custom dimensions
-- 🚀 **Cross-Dimensional Teleportation** - Seamless travel between worlds with safety features
-- 📁 **World Import/Export** - Easy dimension backup, sharing, and migration
-- 🤖 **Auto-Teleport System** - Automated player movement based on events and triggers
-- 🎮 **Game Mode Management** - Different game modes per dimension
-- 🛡️ **Safety Features** - Void protection, safe landing, and fallback systems
-- ⚙️ **Fully Serverside** - Works with vanilla clients - no client mods required
-- 🏛️ **Portal System** - Physical gateways between dimensions (planned feature)
+### 🌍 Dimension Management
+
+- **Multi-World Support** - Create and manage unlimited custom dimensions with various world types
+- **World Import/Export** - Easy dimension sharing and migration between servers
+- **Game Mode Management** - Set different game modes per dimension (creative, survival, adventure,
+  spectator)
+- **Cross-Dimension Safety** - Void protection, safe landing, and automatic fallback systems
+
+### 🚀 Teleportation & Movement
+
+- **Cross-Dimensional Teleportation** - Seamless travel between worlds with built-in safety features
+- **📍 Warp System** - Create private and public teleportation points for quick travel
+    - Private warps for personal bases and locations
+    - Public warps for community areas and landmarks
+    - Configurable limits and cooldown protection
+    - Cross-dimension warp support
+- **🤖 Auto-Teleport System** - Automated player movement based on events and triggers
+    - First join, death, respawn triggers
+    - Customizable destination coordinates
+    - Event-based player routing
+
+### 🏛️ Portal Network
+
+- **Physical Portals** - Create visible gateways between dimensions
+- **Portal Management** - Bind and configure portal connections
+- **Visual Portal System** - Interactive portal blocks for immersive travel
+
+### ⚙️ Server Administration
+
+- **Fully Serverside** - Works with vanilla clients - no client mods required
+- **Comprehensive Commands** - Intuitive command system with tab completion
+- **Flexible Configuration** - Extensive config options for all systems
+- **Permission Integration** - Supports server permission levels and moderation tools
 
 ## 🚀 Quick Start (Demo)
 

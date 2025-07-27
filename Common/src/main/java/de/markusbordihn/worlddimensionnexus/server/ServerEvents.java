@@ -28,10 +28,12 @@ import de.markusbordihn.worlddimensionnexus.saveddata.AutoTeleportDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.DimensionDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.PortalDataStorage;
 import de.markusbordihn.worlddimensionnexus.saveddata.TeleportHistoryDataStorage;
+import de.markusbordihn.worlddimensionnexus.saveddata.WarpDataStorage;
 import de.markusbordihn.worlddimensionnexus.teleport.AutoTeleportManager;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportHistory;
 import de.markusbordihn.worlddimensionnexus.teleport.TeleportManager;
 import de.markusbordihn.worlddimensionnexus.utils.CacheManager;
+import de.markusbordihn.worlddimensionnexus.warp.WarpManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -62,6 +64,9 @@ public class ServerEvents {
     // Register global Portal Data Storage on the Overworld.
     PortalDataStorage.init(overworld);
 
+    // Initialize Warp Data Storage on the Overworld.
+    WarpDataStorage.init(overworld);
+
     // Initialize AutoTeleport Data Storage on the Overworld.
     AutoTeleportDataStorage.init(overworld);
 
@@ -85,6 +90,9 @@ public class ServerEvents {
     // Synchronize Portal Data Storage to Portal Manager.
     PortalManager.sync(PortalDataStorage.get().getPortals());
     PortalTargetManager.sync(PortalDataStorage.get().getTargets());
+
+    // Initialize Warp Manager.
+    WarpManager.initialize();
 
     // Copy example dimension files to world folder.
     WorldDataPackResourceManager.copyDimensionFilesToWorld(minecraftServer);

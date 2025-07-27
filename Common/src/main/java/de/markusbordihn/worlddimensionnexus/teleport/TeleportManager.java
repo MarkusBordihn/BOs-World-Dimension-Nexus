@@ -215,28 +215,53 @@ public class TeleportManager {
     return true;
   }
 
+  public static boolean teleportPlayerToWarp(
+      final ServerPlayer serverPlayer,
+      final ResourceKey<Level> targetDimension,
+      final BlockPos targetPosition,
+      final float yaw,
+      final float pitch) {
+
+    if (serverPlayer == null || targetDimension == null || targetPosition == null) {
+      return false;
+    }
+
+    ServerLevel targetLevel = serverPlayer.server.getLevel(targetDimension);
+    if (targetLevel == null) {
+      log.warn("Target dimension {} does not exist", targetDimension.location());
+      return false;
+    }
+
+    recordCurrentLocation(serverPlayer);
+    executePlayerTeleport(serverPlayer, targetLevel, targetPosition, yaw, pitch);
+    handlePostTeleportActions(targetLevel, targetDimension);
+    handleGameTypeChange(serverPlayer, targetLevel);
+
+    return true;
+  }
+
   private static void executePlayerTeleport(
       final ServerPlayer serverPlayer, final ServerLevel targetLevel, final BlockPos position) {
-    serverPlayer.teleportTo(
-        targetLevel,
-        position.getX() + 0.5,
-        position.getY(),
-        position.getZ() + 0.5,
-        serverPlayer.getYRot(),
-        serverPlayer.getXRot());
+    executePlayerTeleport(
+        serverPlayer, targetLevel, position, serverPlayer.getYRot(), serverPlayer.getXRot());
   }
 
   private static void executePlayerTeleport(
       final ServerPlayer serverPlayer,
       final ServerLevel targetLevel,
       final TeleportLocation location) {
+    executePlayerTeleport(
+        serverPlayer, targetLevel, location.position(), location.yRot(), location.xRot());
+  }
+
+  private static void executePlayerTeleport(
+      final ServerPlayer serverPlayer,
+      final ServerLevel targetLevel,
+      final BlockPos position,
+      final float yaw,
+      final float pitch) {
     serverPlayer.teleportTo(
-        targetLevel,
-        location.position().getX() + 0.5,
-        location.position().getY(),
-        location.position().getZ() + 0.5,
-        location.yRot(),
-        location.xRot());
+        targetLevel, position.getX() + 0.5, position.getY(), position.getZ() + 0.5, yaw, pitch);
   }
 
   private static void handlePostTeleportActions(

@@ -27,6 +27,7 @@ import de.markusbordihn.worlddimensionnexus.server.commands.DimensionCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.EventPortalCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.PortalCommand;
 import de.markusbordihn.worlddimensionnexus.server.commands.TeleportCommand;
+import de.markusbordihn.worlddimensionnexus.server.commands.WarpCommand;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -52,8 +53,9 @@ public class CommandManager {
             .then(AutoTeleportCommand.register())
             .then(DebugCommand.register())
             .then(DimensionCommand.register())
-            .then(PortalCommand.register())
             .then(EventPortalCommand.register())
-            .then(TeleportCommand.register()));
+            .then(PortalCommand.register())
+            .then(TeleportCommand.register())
+            .then(WarpCommand.register()));
   }
 }
