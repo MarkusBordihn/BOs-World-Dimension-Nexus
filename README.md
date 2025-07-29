@@ -116,7 +116,7 @@ Create and manage portals between dimensions:
 
 ```bash
 # Teleport to the fishing dimension (if not already in the dimension)
-/wdn teleport dimension world_dimension_nexus:lobby_dimension
+/wdn teleport dimension world_dimension_nexus:fishing_dimension
 
 # Use a good location for the portal, e.g. at one of the trees
 /wdn portal create unbound green 43 49 20
