@@ -146,7 +146,10 @@ public class DimensionImporter {
   private static void extractZipEntry(
       final ZipInputStream zipInputStream, final ZipEntry entry, final Path tempDir)
       throws IOException {
-    Path filePath = tempDir.resolve(entry.getName());
+    Path filePath = tempDir.resolve(entry.getName()).normalize();
+    if (!filePath.startsWith(tempDir)) {
+      throw new IOException("Invalid zip entry: " + entry.getName());
+    }
     if (entry.isDirectory()) {
       Files.createDirectories(filePath);
     } else {

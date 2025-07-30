@@ -64,7 +64,7 @@ public class PlayerEvents {
       Component warningMessage =
           Component.literal(
 """
-"Warning: The dimension is not fully loaded yet.
+Warning: The dimension is not fully loaded yet.
 The dimension and all entities will only be available as expected after a server restart.
 The current state may be used for preliminary testing, but does not accurately reflect the final dimension.""")
               .withStyle(ChatFormatting.RED);

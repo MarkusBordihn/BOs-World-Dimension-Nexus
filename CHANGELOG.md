@@ -3,7 +3,12 @@
 All notable changes to this project will be summarized in this file.
 For the full changelog, please go to the [Git Hub History][history] instead.
 
+# v0.10.0
+
+- Fixed arbitrary file access during archive extraction.
+
 # v0.9.0
+
 - Added private and public warp system and commands.
 - Added warp system wiki.
 - Improved PortalInfoData record.
