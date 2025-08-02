@@ -42,19 +42,27 @@ public class SpawnerManager {
   private SpawnerManager() {}
 
   public static boolean isNearSpawnerBlock(BlockPos spawnPosition, ServerLevel serverLevel) {
-    LevelChunk chunk = serverLevel.getChunkAt(spawnPosition);
+    if (!serverLevel.hasChunkAt(spawnPosition)) {
+      log.debug("Chunk at {} is not loaded, skipping spawner check", spawnPosition);
+      return false;
+    }
 
-    for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
-      if (blockEntity instanceof SpawnerBlockEntity) {
-        BlockPos spawnerPosition = blockEntity.getBlockPos();
-        double distanceSquared = spawnPosition.distSqr(spawnerPosition);
+    try {
+      LevelChunk chunk = serverLevel.getChunk(spawnPosition.getX() >> 4, spawnPosition.getZ() >> 4);
+      for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+        if (blockEntity instanceof SpawnerBlockEntity) {
+          BlockPos spawnerPosition = blockEntity.getBlockPos();
+          double distanceSquared = spawnPosition.distSqr(spawnerPosition);
 
-        // Check if within spawner range (using squared distance for performance)
-        if (distanceSquared <= SPAWNER_SEARCH_RADIUS * SPAWNER_SEARCH_RADIUS) {
-          log.debug("Found spawner at {} near spawn position {}", spawnerPosition, spawnPosition);
-          return true;
+          // Check if within spawner range (using squared distance for performance)
+          if (distanceSquared <= SPAWNER_SEARCH_RADIUS * SPAWNER_SEARCH_RADIUS) {
+            log.debug("Found spawner at {} near spawn position {}", spawnerPosition, spawnPosition);
+            return true;
+          }
         }
       }
+    } catch (Exception e) {
+      log.error("Error checking for spawner blocks near {}: {}", spawnPosition, e.getMessage());
     }
 
     return false;
@@ -109,9 +117,9 @@ public class SpawnerManager {
       return false;
     }
 
+    // Check if the spawn position is near a spawner block and schedule its removal if so
     boolean isNearSpawner = isNearSpawnerBlock(spawnPosition, serverLevel);
     if (isNearSpawner) {
-      // Schedule spawner removal with delay
       scheduleSpawnerRemoval(spawnPosition, serverLevel);
     }
 

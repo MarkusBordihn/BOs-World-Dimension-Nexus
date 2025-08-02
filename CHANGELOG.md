@@ -3,6 +3,10 @@
 All notable changes to this project will be summarized in this file.
 For the full changelog, please go to the [Git Hub History][history] instead.
 
+# v0.11.0
+
+- Fixed #5 by improve spawner proximity check with chunk loading validation and error handling.
+
 # v0.10.0
 
 - Fixed arbitrary file access during archive extraction.
